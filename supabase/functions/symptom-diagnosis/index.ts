@@ -21,7 +21,7 @@ serve(async (req) => {
       });
     }
     
-    const deepseekApiKey = Deno.env.get("DEEPSEEK_API_KEY"); // Assuming this is set as a Supabase secret
+    const deepseekApiKey = Deno.env.get("sk-acbf08689b8c4be984c98b87e8267925"); // Assuming this is set as a Supabase secret
     if (!deepseekApiKey) {
       throw new Error("Deepseek API key not configured");
     }
