@@ -9,64 +9,27 @@ import { Search, AlertTriangle, Info, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface SymptomRule {
-  id: string;
-  symptom_name: string;
-  keywords: string[];
+interface PossibleCondition {
+  name: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   advice: string;
-  recommended_action: string;
-  specialist_required?: string;
-  is_active: boolean;
+  recommendedAction: string;
+  specialistRequired?: string;
 }
 
-interface SymptomResult {
-  rule: SymptomRule;
-  matchedKeywords: string[];
-  confidence: number;
+interface SymptomDiagnosisResponse {
+  possibleConditions: PossibleCondition[];
+  disclaimer: string;
 }
 
 export const SymptomChecker: React.FC = () => {
   const { toast } = useToast();
   const [symptoms, setSymptoms] = useState('');
-  const [results, setResults] = useState<SymptomResult[]>([]);
+  const [results, setResults] = useState<PossibleCondition[]>([]);
   const [loading, setLoading] = useState(false);
-  const [symptomRules, setSymptomRules] = useState<SymptomRule[]>([]);
+  const [disclaimer, setDisclaimer] = useState('');
 
-  useEffect(() => {
-    fetchSymptomRules();
-  }, []);
-
-  const fetchSymptomRules = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('symptom_rules' as any)
-        .select('*')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      
-      // Validate data structure
-      const validRules = (data || []).filter((item: any) => 
-        item && typeof item === 'object' && 'id' in item
-      ).map((item: any) => ({
-        id: item.id,
-        symptom_name: item.symptom_name,
-        keywords: Array.isArray(item.keywords) ? item.keywords : [],
-        severity: item.severity || 'medium',
-        advice: item.advice || '',
-        recommended_action: item.recommended_action || '',
-        specialist_required: item.specialist_required,
-        is_active: Boolean(item.is_active)
-      }));
-      
-      setSymptomRules(validRules as SymptomRule[]);
-    } catch (error) {
-      console.error('Error fetching symptom rules:', error);
-    }
-  };
-
-  const analyzeSymptoms = () => {
+  const analyzeSymptoms = async () => { // Made async
     if (!symptoms.trim()) {
       toast({
         title: "No Symptoms Entered",
@@ -77,42 +40,45 @@ export const SymptomChecker: React.FC = () => {
     }
 
     setLoading(true);
-    
-    // Simple keyword matching algorithm
-    const symptomWords = symptoms.toLowerCase().split(/\s+/);
-    const matches: SymptomResult[] = [];
+    setResults([]); // Clear previous results
+    setDisclaimer(''); // Clear previous disclaimer
 
-    symptomRules.forEach(rule => {
-      const matchedKeywords = rule.keywords.filter(keyword =>
-        symptomWords.some(word => word.includes(keyword) || keyword.includes(word))
-      );
+    try {
+      const { data, error } = await supabase.functions.invoke('symptom-diagnosis', {
+        body: JSON.stringify({ symptoms: symptoms }),
+      });
 
-      if (matchedKeywords.length > 0) {
-        const confidence = (matchedKeywords.length / rule.keywords.length) * 100;
-        matches.push({
-          rule,
-          matchedKeywords,
-          confidence
+      if (error) {
+        throw new Error(`Diagnosis failed: ${error.message}`);
+      }
+
+      const diagnosisResponse: SymptomDiagnosisResponse = data;
+
+      if (diagnosisResponse?.possibleConditions && Array.isArray(diagnosisResponse.possibleConditions)) {
+        setResults(diagnosisResponse.possibleConditions);
+        setDisclaimer(diagnosisResponse.disclaimer || '');
+      } else {
+        throw new Error("Invalid response format from diagnosis service.");
+      }
+
+      if (diagnosisResponse.possibleConditions.length === 0) {
+        toast({
+          title: "No Specific Conditions Identified",
+          description: "Based on your symptoms, no specific conditions could be confidently identified. Please consult a healthcare professional for a proper diagnosis.",
         });
       }
-    });
 
-    // Sort by confidence and severity
-    matches.sort((a, b) => {
-      const severityWeight = { critical: 4, high: 3, medium: 2, low: 1 };
-      const aWeight = severityWeight[a.rule.severity] * a.confidence;
-      const bWeight = severityWeight[b.rule.severity] * b.confidence;
-      return bWeight - aWeight;
-    });
-
-    setResults(matches.slice(0, 3)); // Show top 3 matches
-    setLoading(false);
-
-    if (matches.length === 0) {
+    } catch (error: any) {
+      console.error('Error analyzing symptoms:', error);
       toast({
-        title: "No Matches Found",
-        description: "Your symptoms don't match our database. Please consult a healthcare professional.",
+        title: "Diagnosis Failed",
+        description: error.message || "Failed to get a diagnosis. Please try again.",
+        variant: "destructive"
       });
+      setResults([]);
+      setDisclaimer('');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -146,13 +112,14 @@ export const SymptomChecker: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert>
-            <Info className="w-4 h-4" />
-            <AlertDescription>
-              This symptom checker is for informational purposes only and should not replace professional medical advice. 
-              Always consult with a healthcare provider for proper diagnosis and treatment.
-            </AlertDescription>
-          </Alert>
+          {disclaimer && (
+            <Alert>
+              <Info className="w-4 h-4" />
+              <AlertDescription>
+                {disclaimer}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="symptoms">Describe your symptoms</Label>
@@ -179,49 +146,39 @@ export const SymptomChecker: React.FC = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Possible Conditions</h3>
           {results.map((result, index) => (
-            <Card key={result.rule.id} className={`border-l-4 ${getSeverityColor(result.rule.severity)}`}>
+            <Card key={index} className={`border-l-4 ${getSeverityColor(result.severity)}`}>
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-semibold">{result.rule.symptom_name}</h4>
+                    <h4 className="text-lg font-semibold">{result.name}</h4>
                     <div className="flex items-center gap-2">
-                      <Badge className={getSeverityColor(result.rule.severity)}>
-                        {getSeverityIcon(result.rule.severity)}
-                        {result.rule.severity.toUpperCase()}
-                      </Badge>
-                      <Badge variant="outline">
-                        {Math.round(result.confidence)}% match
+                      <Badge className={getSeverityColor(result.severity)}>
+                        {getSeverityIcon(result.severity)}
+                        {result.severity.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <div>
-                      <h5 className="font-medium text-sm">Matched symptoms:</h5>
-                      <p className="text-sm text-gray-600">
-                        {result.matchedKeywords.join(', ')}
-                      </p>
-                    </div>
-
-                    <div>
                       <h5 className="font-medium text-sm">General advice:</h5>
-                      <p className="text-sm text-gray-600">{result.rule.advice}</p>
+                      <p className="text-sm text-gray-600">{result.advice}</p>
                     </div>
 
                     <div>
                       <h5 className="font-medium text-sm">Recommended action:</h5>
-                      <p className="text-sm text-gray-600">{result.rule.recommended_action}</p>
+                      <p className="text-sm text-gray-600">{result.recommendedAction}</p>
                     </div>
 
-                    {result.rule.specialist_required && (
+                    {result.specialistRequired && (
                       <div>
                         <h5 className="font-medium text-sm">Specialist required:</h5>
-                        <p className="text-sm text-gray-600">{result.rule.specialist_required}</p>
+                        <p className="text-sm text-gray-600">{result.specialistRequired}</p>
                       </div>
                     )}
                   </div>
 
-                  {result.rule.severity === 'critical' && (
+                  {result.severity === 'critical' && (
                     <Alert className="border-red-200 bg-red-50">
                       <AlertTriangle className="w-4 h-4 text-red-600" />
                       <AlertDescription className="text-red-800">
