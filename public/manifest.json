@@ -1,0 +1,33 @@
+
+{
+  "name": "Healthcare Access Nigeria",
+  "short_name": "Heala",
+  "description": "Complete healthcare management platform",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "127x54",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#7c3aed",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en-US"
+}
