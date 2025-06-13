@@ -147,7 +147,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <img src="HEALA-2\src\images\HEALAapp.png" alt="Heala App" className="w-full h-auto object-contain" />
+              <img src="/src\images\HEALAapp.png" alt="Heala App" className="w-full h-auto object-contain" />
             </div>
             <div className="md:w-1/2 text-center md:text-left">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">Download the Heala App</h2>
@@ -176,7 +176,7 @@ const Index = () => {
           <div className="grid md:grid-cols-3 gap-8">
             <Card>
               <CardHeader>
-                <CardTitle className="text-4xl font-bold text-purple-600">1:2,500</CardTitle>
+                <CardTitle className="text-4xl font-bold text-purple-600">1:9,086</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">Doctor to patient ratio in Nigeria, far below the WHO recommendation</p>
