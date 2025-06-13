@@ -19,7 +19,7 @@ const Index = () => {
                   alt="Heala" 
                   className="h-8 w-auto"
                 />
-                <span className="text-2xl font-bold text-purple-800">Heala</span>
+                <span className="text-2xl font-bold text-purple-800"></span>
               </Link>
               <Link to="/" className="text-gray-600 hover:text-purple-600">Home</Link>
               <Link to="/about" className="text-gray-600 hover:text-purple-600">About</Link>
@@ -147,7 +147,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <img src="src\images\HEALAapp.png" alt="Heala App" className="w-full h-auto object-contain" />
+              <img src="HEALA-2\src\images\HEALAapp.png" alt="Heala App" className="w-full h-auto object-contain" />
             </div>
             <div className="md:w-1/2 text-center md:text-left">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">Download the Heala App</h2>
