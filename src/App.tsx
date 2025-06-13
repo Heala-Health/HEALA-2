@@ -17,6 +17,10 @@ import HospitalDashboard from "./pages/HospitalDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import Contact from "./pages/Contact";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import About from "./pages/About";
+import TermsOfService from "./pages/TermsOfService";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +37,10 @@ const App = () => (
               <Route path="/auth/login" element={<Login />} />
               <Route path="/auth/register" element={<Register />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
               
               {/* Protected Routes - Main dashboard URLs */}
               <Route 

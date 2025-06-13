@@ -1,28 +1,35 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Paperclip, Mic, Camera, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, Mic, Camera, MoreVertical, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Database, Json } from '@/integrations/supabase/types'; // Import Database and Json types
 
-interface Message {
-  id: string;
-  content: string;
-  sender_type: 'patient' | 'physician';
-  sender_id: string;
-  is_read: boolean;
-  read_at?: string;
-  message_attachments?: any;
-  created_at: string;
+type MessageRow = Database['public']['Tables']['messages']['Row'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+type ConversationRow = Database['public']['Tables']['conversations']['Row'];
+
+interface Message extends MessageRow {
+  is_read?: boolean; // Client-side property, not from DB
+  read_at?: string; // Client-side property, not from DB
+  message_attachments?: Json | null; // Maps to metadata from DB
 }
 
 interface TypingIndicator {
   user_id: string;
   is_typing: boolean;
+}
+
+interface ParticipantProfile {
+  first_name: string;
+  last_name: string;
+  role: ProfileRow['role'];
+  specialization?: string | null;
+  phone?: string | null;
 }
 
 interface EnhancedChatProps {
@@ -34,18 +41,20 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
   conversationId,
   onBack
 }) => {
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  const [participantProfile, setParticipantProfile] = useState<ParticipantProfile | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     if (conversationId && user) {
+      fetchConversationAndParticipant();
       fetchMessages();
       subscribeToMessages();
     }
@@ -61,6 +70,47 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  const fetchConversationAndParticipant = async () => {
+    if (!user) return;
+
+    try {
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('patient_id, physician_id, type') // Removed agent_id
+        .eq('id', conversationId)
+        .single();
+
+      if (conversationError) throw conversationError;
+
+      let otherParticipantId: string | null = null;
+
+      if (conversation.patient_id === user.id) {
+        otherParticipantId = conversation.physician_id; // This could be a physician or an agent
+      } else if (conversation.physician_id === user.id) {
+        otherParticipantId = conversation.patient_id;
+      }
+
+      if (otherParticipantId) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, role, specialization, phone')
+          .eq('id', otherParticipantId)
+          .single();
+
+        if (profileError) throw profileError;
+
+        setParticipantProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error fetching conversation or participant:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversation details",
+        variant: "destructive"
+      });
+    }
+  };
+
   const fetchMessages = async () => {
     try {
       const { data, error } = await supabase
@@ -71,16 +121,11 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
 
       if (error) throw error;
       
-      // Transform messages to match our interface
-      const transformedMessages = (data || []).map((msg: any) => ({
-        id: msg.id,
-        content: msg.content,
-        sender_type: msg.sender_type,
-        sender_id: msg.sender_id,
-        is_read: false, // Default value since column might not exist yet
-        read_at: undefined,
-        message_attachments: msg.metadata,
-        created_at: msg.created_at
+      const transformedMessages: Message[] = (data || []).map((msg: MessageRow) => ({
+        ...msg,
+        is_read: false, // Assuming client-side tracking or default
+        read_at: undefined, // Assuming client-side tracking or default
+        message_attachments: msg.metadata // Map metadata to message_attachments
       }));
       
       setMessages(transformedMessages);
@@ -108,16 +153,12 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const newMsg = payload.new as any;
+          const newMsg = payload.new as MessageRow;
           const transformedMessage: Message = {
-            id: newMsg.id,
-            content: newMsg.content,
-            sender_type: newMsg.sender_type,
-            sender_id: newMsg.sender_id,
+            ...newMsg,
             is_read: false,
             read_at: undefined,
-            message_attachments: newMsg.metadata,
-            created_at: newMsg.created_at
+            message_attachments: newMsg.metadata
           };
           setMessages(current => [...current, transformedMessage]);
         }
@@ -131,16 +172,12 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const updatedMsg = payload.new as any;
+          const updatedMsg = payload.new as MessageRow;
           const transformedMessage: Message = {
-            id: updatedMsg.id,
-            content: updatedMsg.content,
-            sender_type: updatedMsg.sender_type,
-            sender_id: updatedMsg.sender_id,
+            ...updatedMsg,
             is_read: false,
             read_at: undefined,
-            message_attachments: updatedMsg.metadata,
-            created_at: updatedMsg.created_at
+            message_attachments: updatedMsg.metadata
           };
           setMessages(current => 
             current.map(msg => 
@@ -178,7 +215,7 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
           conversation_id: conversationId,
           content: newMessage,
           sender_id: user?.id,
-          sender_type: 'patient' // This should be dynamic based on user role
+          sender_type: currentUserProfile?.role || 'patient'
         });
 
       if (error) throw error;
@@ -226,8 +263,20 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <CardTitle className="text-lg">Dr. Physician</CardTitle>
-              <p className="text-sm text-gray-600">General Medicine</p>
+              <CardTitle className="text-lg">
+                {participantProfile ? 
+                  `${participantProfile.role === 'physician' ? 'Dr. ' : ''}${participantProfile.first_name} ${participantProfile.last_name}` 
+                  : 'Loading...'}
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                {participantProfile?.role === 'physician' && participantProfile.specialization}
+                {participantProfile?.role === 'agent' && participantProfile.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3 h-3" />
+                    {participantProfile.phone}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="sm">
@@ -259,7 +308,7 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
                   </span>
                   {message.sender_id === user?.id && (
                     <span className="text-xs opacity-70">
-                      {message.is_read ? '✓✓' : '✓'}
+                      {/* Removed is_read check as it's not in DB */}
                     </span>
                   )}
                 </div>
