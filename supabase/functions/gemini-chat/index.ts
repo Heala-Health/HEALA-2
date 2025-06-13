@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6em5veGN0cXliY2JlcnJrZ2p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODA3NzY5MywiZXhwIjoyMDYzNjUzNjkzfQ.j2UuVL1Ai07V3dzPgDk3GPVVi7Elk2-FtJpjr04OGug") ?? ""
     );
 
     // Get auth user
