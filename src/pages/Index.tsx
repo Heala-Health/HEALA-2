@@ -184,7 +184,7 @@ const Index = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-4xl font-bold text-purple-600">20%</CardTitle>
+                <CardTitle className="text-4xl font-bold text-purple-600">28.5%</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">Of global maternal deaths occur in Nigeria</p>
