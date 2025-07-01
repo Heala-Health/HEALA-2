@@ -17,7 +17,8 @@ export const createPrescription = async (
     prescribed_date: new Date().toISOString()
   };
 
-  const { error } = await supabase
+  // Create the prescription
+  const { data: prescription, error } = await supabase
     .from('prescriptions')
     .insert({
       patient_id: patientId,
@@ -28,7 +29,32 @@ export const createPrescription = async (
       max_repeats: repeatAllowed ? maxRepeats : 0,
       pharmacy_id: pharmacyId || null,
       status: 'pending'
-    });
+    })
+    .select()
+    .single();
 
   if (error) throw error;
+
+  // Get physician name for notification
+  const { data: physicianProfile } = await supabase
+    .from('profiles')
+    .select('first_name, last_name')
+    .eq('id', physicianId)
+    .single();
+
+  const physicianName = physicianProfile 
+    ? `Dr. ${physicianProfile.first_name} ${physicianProfile.last_name}`
+    : 'Your physician';
+
+  // Create notification for patient
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: patientId,
+      title: 'New Prescription Received',
+      message: `${physicianName} has sent you a new prescription with ${medications.length} medication(s).`,
+      type: 'prescription'
+    });
+
+  return prescription;
 };

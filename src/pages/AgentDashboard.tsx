@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { DynamicOverview } from '@/components/agent/DynamicOverview';
 import { PatientLookup } from '@/components/agent/PatientLookup';
 import { AssistedPatients } from '@/components/agent/AssistedPatients';
 import { TransportBooking } from '@/components/agent/TransportBooking';
 import { AppointmentBookingAgent } from '@/components/agent/AppointmentBooking';
-import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
+import { EnhancedAgentChatInterface } from '@/components/agent/EnhancedAgentChatInterface';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -45,9 +44,9 @@ const AgentDashboard = () => {
       case 'transport-booking':
         return <TransportBooking patientId={selectedPatient?.id} patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : undefined} />;
       case 'appointment-booking':
-        return <AppointmentBookingAgent patientEmail={selectedPatient?.email} />;
+        return <AppointmentBookingAgent />;
       case 'chat':
-        return <AgentChatInterface />;
+        return <EnhancedAgentChatInterface />;
       default:
         return <DynamicOverview />;
     }

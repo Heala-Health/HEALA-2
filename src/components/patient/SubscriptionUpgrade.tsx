@@ -28,27 +28,47 @@ interface UserSubscription {
 
 const plans: SubscriptionPlan[] = [
   {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    currency: 'N/A',
+    id: 'basic',
+    name: 'Basic',
+    price: 2000,
+    currency: 'NGN',
     icon: <Star className="w-6 h-6" />,
     features: [
-      '2 free in-person bookings',
-      'Limited chat bot use'
+      'Basic health consultations',
+      'Appointment booking',
+      'Emergency contacts',
+      'Basic transport booking'
     ]
   },
   {
     id: 'premium',
     name: 'Premium',
-    price: 5000, // Assuming NGN 5000 as a placeholder, adjust if needed
+    price: 5000,
     currency: 'NGN',
     icon: <Crown className="w-6 h-6" />,
     popular: true,
     features: [
-      'Priority booking',
-      'Unlimited in-person booking',
-      'Unlimited chat bot use'
+      'All Basic features',
+      'Priority consultations',
+      'Advanced health monitoring',
+      'Premium transport options',
+      'Specialist referrals',
+      '24/7 support'
+    ]
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: 10000,
+    currency: 'NGN',
+    icon: <Zap className="w-6 h-6" />,
+    features: [
+      'All Premium features',
+      'Family health management',
+      'Corporate health plans',
+      'Custom health reports',
+      'Dedicated account manager',
+      'API access'
     ]
   }
 ];
@@ -89,98 +109,65 @@ export const SubscriptionUpgrade: React.FC = () => {
     }
   };
 
-  const handleSubscriptionAction = async (plan: SubscriptionPlan) => {
+  const handlePaystackPayment = (plan: SubscriptionPlan) => {
     if (!user) return;
 
     setProcessingPlan(plan.id);
 
-    if (plan.id === 'free') {
-      try {
-        // For free plan, directly save subscription to database
-        const { error } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: user.id,
-            plan_name: plan.name,
-            amount: plan.price,
-            currency: plan.currency,
-            status: 'active',
-            // No paystack_subscription_code or next_payment_date for free plan
-          }, { onConflict: 'user_id' });
-
-        if (error) throw error;
-
-        toast({
-          title: "Subscription Activated!",
-          description: `You have successfully activated the ${plan.name} plan.`,
-        });
-        fetchCurrentSubscription();
-      } catch (error: unknown) { // Changed to unknown
-        console.error('Error activating free subscription:', error);
-        toast({
-          title: "Error",
-          description: (error as Error).message || "Failed to activate free plan. Please try again.",
-          variant: "destructive"
-        });
-      } finally {
-        setProcessingPlan(null);
-      }
-    } else {
-      // Handle paid plans with Paystack
-      const handler = (window as any).PaystackPop.setup({
-        key: PAYSTACK_PUBLIC_KEY,
-        email: user.email,
-        amount: plan.price * 100, // Paystack expects amount in kobo
-        currency: plan.currency,
-        plan: plan.id, // If you have plan codes in Paystack
-        callback: async (response: unknown) => { // Changed to unknown
-          console.log('Payment successful:', response);
-          
-          try {
-            // Save subscription to database
-            const { error } = await supabase
-              .from('subscriptions')
-              .upsert({
-                user_id: user.id,
-                plan_name: plan.name,
-                amount: plan.price,
-                currency: plan.currency,
-                status: 'active',
-                paystack_subscription_code: (response as any).reference, // Cast to any for specific property access
-                next_payment_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-              }, { onConflict: 'user_id' });
-
-            if (error) throw error;
-
-            toast({
-              title: "Subscription Successful!",
-              description: `You have successfully subscribed to the ${plan.name} plan.`,
+    // Initialize Paystack payment
+    const handler = (window as any).PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: user.email,
+      amount: plan.price * 100, // Paystack expects amount in kobo
+      currency: plan.currency,
+      plan: plan.id, // If you have plan codes in Paystack
+      callback: async (response: any) => {
+        console.log('Payment successful:', response);
+        
+        try {
+          // Save subscription to database
+          const { error } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: user.id,
+              plan_name: plan.name,
+              amount: plan.price,
+              currency: plan.currency,
+              status: 'active',
+              paystack_subscription_code: response.reference,
+              next_payment_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
             });
 
-            fetchCurrentSubscription();
-          } catch (error: unknown) { // Changed to unknown
-            console.error('Error saving subscription:', error);
-            toast({
-              title: "Error",
-              description: (error as Error).message || "Payment successful but failed to activate subscription. Please contact support.",
-              variant: "destructive"
-            });
-          } finally {
-            setProcessingPlan(null);
-          }
-        },
-        onClose: () => {
-          setProcessingPlan(null);
+          if (error) throw error;
+
           toast({
-            title: "Payment Cancelled",
-            description: "Your payment was cancelled.",
+            title: "Subscription Successful!",
+            description: `You have successfully subscribed to the ${plan.name} plan.`,
+          });
+
+          fetchCurrentSubscription();
+        } catch (error) {
+          console.error('Error saving subscription:', error);
+          toast({
+            title: "Error",
+            description: "Payment successful but failed to activate subscription. Please contact support.",
             variant: "destructive"
           });
+        } finally {
+          setProcessingPlan(null);
         }
-      });
+      },
+      onClose: () => {
+        setProcessingPlan(null);
+        toast({
+          title: "Payment Cancelled",
+          description: "Your payment was cancelled.",
+          variant: "destructive"
+        });
+      }
+    });
 
-      handler.openIframe();
-    }
+    handler.openIframe();
   };
 
   const isCurrentPlan = (planName: string) => {
@@ -257,13 +244,13 @@ export const SubscriptionUpgrade: React.FC = () => {
                 className="w-full"
                 variant={isCurrentPlan(plan.name) ? "outline" : "default"}
                 disabled={isCurrentPlan(plan.name) || processingPlan === plan.id}
-                onClick={() => handleSubscriptionAction(plan)}
+                onClick={() => handlePaystackPayment(plan)}
               >
                 {processingPlan === plan.id 
                   ? 'Processing...' 
                   : isCurrentPlan(plan.name) 
                     ? 'Current Plan' 
-                    : plan.id === 'free' ? 'Activate Free Plan' : `Subscribe to ${plan.name}`
+                    : `Subscribe to ${plan.name}`
                 }
               </Button>
             </CardContent>

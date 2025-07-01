@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 type UserRole = 'patient' | 'physician' | 'hospital_admin' | 'agent' | 'admin';
 type SubscriptionPlan = 'basic' | 'premium' | 'enterprise';
 
-export interface UserProfile { // Export UserProfile
+interface UserProfile {
   id: string;
   email: string;
   first_name?: string;
@@ -17,6 +16,7 @@ export interface UserProfile { // Export UserProfile
   license_number?: string;
   specialization?: string;
   subscription_plan?: SubscriptionPlan;
+  current_consultation_rate?: number;
 }
 
 interface AuthContextType {

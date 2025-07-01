@@ -18,8 +18,8 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [emergencyType, setEmergencyType] = useState('Medical Emergency');
-  const [severity, setSeverity] = useState('Medium');
+  const [emergencyType, setEmergencyType] = useState('');
+  const [severity, setSeverity] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
 
@@ -117,17 +117,6 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
     }
   };
 
-  const handleCancel = () => {
-    setEmergencyType('Medical Emergency');
-    setSeverity('Medium');
-    setDescription('');
-    setLocation('');
-    toast({
-      title: "Request Cancelled",
-      description: "The emergency request form has been cleared.",
-    });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -202,13 +191,6 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
           className="w-full bg-red-600 hover:bg-red-700"
         >
           {loading ? 'Submitting...' : 'Submit Emergency Request'}
-        </Button>
-        <Button 
-          onClick={handleCancel} 
-          disabled={loading} 
-          className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800"
-        >
-          Cancel Request
         </Button>
 
         {patientId && (

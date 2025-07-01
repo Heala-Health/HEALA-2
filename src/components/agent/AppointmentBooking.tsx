@@ -19,17 +19,13 @@ interface Physician {
   hospital_name: string;
 }
 
-interface AppointmentBookingAgentProps {
-  patientEmail?: string;
-}
-
-export const AppointmentBookingAgent: React.FC<AppointmentBookingAgentProps> = ({ patientEmail }) => {
+export const AppointmentBookingAgent: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [physicians, setPhysicians] = useState<Physician[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    patient_email: patientEmail || '',
+    patient_email: '',
     physician_id: '',
     appointment_date: '',
     appointment_time: '',
@@ -39,12 +35,6 @@ export const AppointmentBookingAgent: React.FC<AppointmentBookingAgentProps> = (
   useEffect(() => {
     fetchPhysicians();
   }, []);
-
-  useEffect(() => {
-    if (patientEmail) {
-      setFormData(prev => ({ ...prev, patient_email: patientEmail }));
-    }
-  }, [patientEmail]);
 
   const fetchPhysicians = async () => {
     try {
@@ -159,7 +149,6 @@ export const AppointmentBookingAgent: React.FC<AppointmentBookingAgentProps> = (
                 onChange={(e) => handleInputChange('patient_email', e.target.value)}
                 className="pl-10"
                 required
-                readOnly={!!patientEmail} // Make read-only if patientEmail prop is provided
               />
             </div>
           </div>

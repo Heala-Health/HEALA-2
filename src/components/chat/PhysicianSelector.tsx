@@ -45,6 +45,30 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
 
   const fetchPhysicians = async () => {
     try {
+      console.log('Fetching physicians for chat selector...');
+      
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_physicians');
+      
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        console.log('Physicians fetched via RPC:', rpcData.length);
+        const formattedPhysicians = rpcData.map((physician: any) => ({
+          id: physician.id,
+          first_name: physician.first_name || '',
+          last_name: physician.last_name || '',
+          specialization: physician.specialization || 'General Practice',
+          hospital_name: physician.hospital_name || 'Independent Practice',
+          is_active: true
+        }));
+        setPhysicians(formattedPhysicians);
+        setFilteredPhysicians(formattedPhysicians);
+        setLoading(false);
+        return;
+      }
+
+      console.log('RPC failed, trying direct query...');
+      
+      // Fallback to direct query
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -58,17 +82,21 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
         .eq('role', 'physician')
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in direct query:', error);
+        throw error;
+      }
 
       const formattedPhysicians = (data || []).map(physician => ({
         id: physician.id,
         first_name: physician.first_name || '',
         last_name: physician.last_name || '',
         specialization: physician.specialization || 'General Practice',
-        hospital_name: (physician.hospitals as any)?.name || 'Unknown Hospital',
+        hospital_name: (physician.hospitals as any)?.name || 'Independent Practice',
         is_active: physician.is_active
       }));
 
+      console.log('Physicians fetched directly:', formattedPhysicians.length);
       setPhysicians(formattedPhysicians);
       setFilteredPhysicians(formattedPhysicians);
     } catch (error) {
@@ -126,6 +154,14 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
           {filteredPhysicians.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {searchTerm ? 'No physicians found matching your search.' : 'No physicians available at the moment.'}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={fetchPhysicians}
+                className="mt-4 block mx-auto"
+              >
+                Refresh Physicians
+              </Button>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import { Calendar, Clock, User, Stethoscope } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types'; // Added import
 
 interface Physician {
   id: string;
@@ -30,7 +30,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
   patientName, 
   patientEmail 
 }) => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [physicians, setPhysicians] = useState<Physician[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,9 +38,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
     physicianId: '',
     appointmentDate: '',
     appointmentTime: '',
-    notes: '',
-    consultationType: 'in_person', // Default to in-person
-    virtualConsultationFee: '' // New state for virtual consultation fee
+    notes: ''
   });
 
   const effectivePatientId = patientId || user?.id;
@@ -51,18 +49,54 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
   const fetchPhysicians = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_available_physicians');
+      console.log('Fetching physicians for appointment booking...');
       
-      if (error) throw error;
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_physicians');
       
-      const formattedPhysicians = (data || []).map((physician: Physician) => ({
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        console.log('Physicians fetched via RPC:', rpcData.length);
+        const formattedPhysicians = rpcData.map((physician: any) => ({
+          id: physician.id,
+          first_name: physician.first_name || 'Unknown',
+          last_name: physician.last_name || '',
+          specialization: physician.specialization || 'General',
+          hospital_name: physician.hospital_name || 'Unknown Hospital'
+        }));
+        setPhysicians(formattedPhysicians);
+        return;
+      }
+
+      console.log('RPC failed, trying direct query...');
+      
+      // Fallback to direct query
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialization,
+          hospitals (name)
+        `)
+        .eq('role', 'physician')
+        .eq('is_active', true)
+        .order('first_name');
+      
+      if (error) {
+        console.error('Error in direct query:', error);
+        throw error;
+      }
+      
+      const formattedPhysicians = (data || []).map((physician: any) => ({
         id: physician.id,
         first_name: physician.first_name || 'Unknown',
         last_name: physician.last_name || '',
         specialization: physician.specialization || 'General',
-        hospital_name: physician.hospital_name || 'Unknown Hospital'
+        hospital_name: physician.hospitals?.name || 'Unknown Hospital'
       }));
       
+      console.log('Physicians fetched directly:', formattedPhysicians.length);
       setPhysicians(formattedPhysicians);
     } catch (error) {
       console.error('Error fetching physicians:', error);
@@ -87,123 +121,31 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
     setLoading(true);
     try {
-      let proceedWithBooking = true;
-      let paymentAmount = 0;
-      let paymentRequired = false;
-
-      // Determine if payment is required and the amount
-      if (profile?.role === 'patient') {
-        if (formData.consultationType === 'in_person') {
-          if (profile?.subscription_plan === 'basic') {
-            // Check monthly in-person bookings for basic users
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1); // Set to the first day of the month
-            startOfMonth.setHours(0, 0, 0, 0);
-
-            const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0); // Last day of the month
-            endOfMonth.setHours(23, 59, 59, 999);
-
-            const { count, error: countError } = await supabase
-              .from('appointments')
-              .select('*', { count: 'exact', head: true })
-              .eq('patient_id', effectivePatientId)
-              .eq('consultation_type', 'in_person')
-              .in('status', ['confirmed', 'completed']) // Only count confirmed or completed appointments
-              .gte('appointment_date', startOfMonth.toISOString().split('T')[0])
-              .lte('appointment_date', endOfMonth.toISOString().split('T')[0]);
-
-            if (countError) throw countError;
-
-            if ((count || 0) >= 2) {
-              paymentRequired = true;
-              paymentAmount = 300; // Naira for additional in-person booking
-              toast({
-                title: "Additional Booking Fee",
-                description: `You have exceeded your free in-person bookings. An additional fee of ${paymentAmount} Naira will be charged.`,
-                variant: "default"
-              });
-            }
-          } else if (profile?.subscription_plan === 'premium' || profile?.subscription_plan === 'enterprise') {
-            // Premium/Enterprise users have unlimited in-person bookings, no payment needed
-            console.log('Premium/Enterprise user, unlimited in-person bookings.');
-          }
-        } else if (formData.consultationType === 'virtual') {
-          // Virtual consultation payment
-          const fee = parseFloat(formData.virtualConsultationFee);
-          if (isNaN(fee) || fee < 5000 || fee > 15000) {
-            toast({
-              title: "Invalid Virtual Consultation Fee",
-              description: "Please enter a virtual consultation fee between 5,000 and 15,000 Naira.",
-              variant: "destructive"
-            });
-            setLoading(false);
-            return; // Stop submission
-          }
-          paymentRequired = true;
-          paymentAmount = fee;
-          toast({
-            title: "Virtual Consultation Fee",
-            description: `A fee of ${paymentAmount} Naira will be charged for this virtual consultation.`,
-            variant: "default"
-          });
-        }
-      }
-
-      if (paymentRequired) {
-        // Call Supabase Edge Function for payment initialization
-        const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('process-appointment-payment', {
-          body: JSON.stringify({
-            amount: paymentAmount,
-            patient_id: effectivePatientId,
-            appointment_details: formData, // Pass full form data for metadata
-          }),
+      const { error } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id: effectivePatientId,
+          physician_id: formData.physicianId,
+          appointment_date: formData.appointmentDate,
+          appointment_time: formData.appointmentTime,
+          notes: formData.notes,
+          status: 'pending'
         });
 
-        if (paymentError) {
-          throw new Error(`Payment processing failed: ${paymentError.message}`);
-        }
+      if (error) throw error;
 
-        const paymentData = paymentResponse?.data;
+      toast({
+        title: "Appointment Booked",
+        description: `Appointment has been successfully booked${patientName ? ` for ${patientName}` : ''}.`,
+      });
 
-        if (paymentData?.status === 'success' && paymentData?.data?.authorization_url) {
-          // Redirect to Paystack for payment
-          window.location.href = paymentData.data.authorization_url;
-          proceedWithBooking = false; // Do not proceed with booking yet, wait for Paystack callback
-        } else {
-          throw new Error(`Payment initialization failed: ${paymentData?.message || 'Unknown error'}`);
-        }
-      }
-
-      if (proceedWithBooking) {
-        const { error } = await supabase
-          .from('appointments')
-          .insert({
-            patient_id: effectivePatientId,
-            physician_id: formData.physicianId,
-            appointment_date: formData.appointmentDate,
-            appointment_time: formData.appointmentTime,
-            notes: formData.notes,
-            consultation_type: formData.consultationType as Database['public']['Enums']['consultation_type'],
-            status: 'pending'
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: "Appointment Booked",
-          description: `Appointment has been successfully booked${patientName ? ` for ${patientName}` : ''}.`,
-        });
-
-        // Reset form
-        setFormData({
-          physicianId: '',
-          appointmentDate: '',
-          appointmentTime: '',
-          notes: '',
-          consultationType: 'in_person', // Reset to default
-          virtualConsultationFee: '' // Reset virtual consultation fee
-        });
-      }
+      // Reset form
+      setFormData({
+        physicianId: '',
+        appointmentDate: '',
+        appointmentTime: '',
+        notes: ''
+      });
     } catch (error) {
       console.error('Error booking appointment:', error);
       toast({
@@ -244,31 +186,35 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="default" disabled>Choose a physician</SelectItem>
-                {physicians.map((physician) => (
-                  <SelectItem key={physician.id} value={physician.id}>
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="w-4 h-4" />
-                      <span>
-                        Dr. {physician.first_name} {physician.last_name} - {physician.specialization}
-                      </span>
-                    </div>
+                {physicians.length === 0 ? (
+                  <SelectItem value="no_physicians" disabled>
+                    No physicians available - Click refresh
                   </SelectItem>
-                ))}
+                ) : (
+                  physicians.map((physician) => (
+                    <SelectItem key={physician.id} value={physician.id}>
+                      <div className="flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4" />
+                        <span>
+                          Dr. {physician.first_name} {physician.last_name} - {physician.specialization}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="consultationType">Consultation Type</Label>
-            <Select value={formData.consultationType} onValueChange={(value) => setFormData({ ...formData, consultationType: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select consultation type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in_person">In-person</SelectItem>
-                <SelectItem value="virtual">Virtual</SelectItem>
-              </SelectContent>
-            </Select>
+            {physicians.length === 0 && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={fetchPhysicians}
+                className="mt-2"
+              >
+                Refresh Physicians
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -305,22 +251,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               rows={3}
             />
           </div>
-
-          {formData.consultationType === 'virtual' && (
-            <div>
-              <Label htmlFor="virtualConsultationFee">Virtual Consultation Fee (Naira)</Label>
-              <Input
-                id="virtualConsultationFee"
-                type="number"
-                placeholder="Enter fee (5000 - 15000)"
-                value={formData.virtualConsultationFee}
-                onChange={(e) => setFormData({ ...formData, virtualConsultationFee: e.target.value })}
-                min="5000"
-                max="15000"
-                required={formData.consultationType === 'virtual'}
-              />
-            </div>
-          )}
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Booking...' : 'Book Appointment'}

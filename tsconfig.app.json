@@ -21,8 +21,6 @@
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
 
-    "types": ["react", "date-fns"], // Explicitly include types
-
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

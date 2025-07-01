@@ -1,15 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { PatientList } from '@/components/physician/PatientList';
 import { PhysicianChatInterface } from '@/components/physician/PhysicianChatInterface';
 import { PhysicianProfile } from '@/components/physician/PhysicianProfile';
 import { PhysicianDocumentUpload } from '@/components/physician/PhysicianDocumentUpload';
 import { DynamicOverview } from '@/components/physician/DynamicOverview';
+import { AppointmentApproval } from '@/components/physician/AppointmentApproval';
+import { PatientManagement } from '@/components/physician/PatientManagement';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { DigitalWallet } from '@/components/wallet/DigitalWallet';
+import { VirtualConsultationRoom } from '@/components/consultation/VirtualConsultationRoom';
 import { useSearchParams } from 'react-router-dom';
-import { PendingAppointments } from '@/components/physician/PendingAppointments';
-import { PatientConsultationHistory } from '@/components/physician/PatientConsultationHistory';
-import { PrescriptionInput } from '@/components/physician/PrescriptionInput';
-import { PhysicianPrescriptionHistory } from '@/components/physician/PhysicianPrescriptionHistory';
 
 const PhysicianDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -24,25 +25,34 @@ const PhysicianDashboard = () => {
     switch (activeTab) {
       case 'overview':
         return <DynamicOverview />;
+      case 'appointments':
+        return <AppointmentApproval />;
       case 'patients':
-        // This PatientList component might need to be updated to fetch actual patients
-        // For now, it remains as is, but the PatientConsultationHistory provides the requested patient list.
-        return <PatientList patients={[]} onStartConversation={() => {}} />;
-      case 'patient-history': // New tab for patient consultation history
-        return <PatientConsultationHistory />;
-      case 'create-prescription': // New tab for creating prescriptions
-        // You might pass patientId and appointmentId dynamically here if needed
-        return <PrescriptionInput />;
-      case 'prescription-history': // New tab for physician's prescription history
-        return <PhysicianPrescriptionHistory />;
+        return <PatientManagement />;
       case 'chat':
         return <PhysicianChatInterface />;
+      case 'wallet':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Digital Wallet
+            </h2>
+            <DigitalWallet />
+          </div>
+        );
+      case 'virtual-consultation':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Virtual Consultation Room
+            </h2>
+            <VirtualConsultationRoom sessionId={searchParams.get('session')} />
+          </div>
+        );
       case 'profile':
         return <PhysicianProfile />;
       case 'documents':
         return <PhysicianDocumentUpload />;
-      case 'pending-appointments':
-        return <PendingAppointments />;
       default:
         return <DynamicOverview />;
     }
