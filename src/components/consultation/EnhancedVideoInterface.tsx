@@ -148,23 +148,16 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
   });
 
   const handleStartConsultation = async () => {
-    try {
-      const { error } = await supabase
-        .from('consultation_sessions')
-        .update({ 
-          status: 'in_progress',
-          started_at: new Date().toISOString()
-        })
-        .eq('id', currentSession.id);
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "User not authenticated. Please login again.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      if (error) throw error;
-      
-      setCurrentSession(prev => ({
-        ...prev,
-        status: 'in_progress' as const,
-        started_at: new Date().toISOString()
-      }));
-      
+    try {
       await onStartSession();
       
       toast({
@@ -182,12 +175,24 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
     }
   };
 
-  const handleJoinCall = () => {
-    startCall();
-    toast({
-      title: "📞 Joining Video Call",
-      description: "Connecting to the consultation...",
-    });
+  const handleJoinCall = async () => {
+    console.log('🎬 [EnhancedVideoInterface] handleJoinCall triggered');
+    console.log('🎬 [EnhancedVideoInterface] startCall function:', typeof startCall);
+    
+    try {
+      await startCall();
+      toast({
+        title: "📞 Joining Video Call",
+        description: "Connecting to the consultation...",
+      });
+    } catch (error) {
+      console.error('❌ Error starting call:', error);
+      toast({
+        title: "❌ Failed to Start Call",
+        description: "Please check your camera/microphone permissions and try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEndSession = () => {

@@ -1,7 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, Stethoscope, Calendar, Users, ArrowRight } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import HEALAappImage from "@/images/HEALAapp.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -147,7 +149,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <img src="\images\HEALAapp.png" alt="Heala App" className="w-full h-auto object-contain" />
+              <img src={HEALAappImage} alt="Heala App" className="w-full h-auto object-contain" />
             </div>
             <div className="md:w-1/2 text-center md:text-left">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">Download the Heala App</h2>

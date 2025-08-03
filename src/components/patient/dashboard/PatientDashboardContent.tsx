@@ -1,114 +1,113 @@
-import React from 'react';
-import { ChatInterface } from '@/components/chat/ChatInterface';
-import { TransportManagement } from '@/components/patient/TransportManagement';
-import { PatientSettings } from '@/components/patient/PatientSettings';
-import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
-import { AmbulanceStatus } from '@/components/emergency/AmbulanceStatus';
-import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
-import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
-import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
-import { OfflineManager } from '@/components/offline/OfflineManager';
-import { ContactAgent } from '@/components/patient/ContactAgent';
-import { PatientAgentChat } from '@/components/patient/PatientAgentChat';
 
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { AppointmentsTab } from './AppointmentsTab';
 import { WalletTab } from './WalletTab';
-import { VirtualConsultationTab } from './VirtualConsultationTab';
-import { AIAssistantTab } from './AIAssistantTab';
-import { PrescriptionsTab } from './PrescriptionsTab';
-import { HealthRecordsTab } from './HealthRecordsTab';
+import { EnhancedVirtualConsultationTab } from './EnhancedVirtualConsultationTab';
 import { EmergencyTab } from './EmergencyTab';
-import { ProfileTab } from './ProfileTab';
+import { HealthRecordsTab } from './HealthRecordsTab';
+import { PrescriptionsTab } from './PrescriptionsTab';
+import { AIAssistantTab } from './AIAssistantTab';
 import { SubscriptionTab } from './SubscriptionTab';
+import { ProfileTab } from './ProfileTab';
+import { SymptomCheckerTab } from './SymptomCheckerTab';
+import { ChatTab } from './ChatTab';
+import { EmergencyContactsTab } from './EmergencyContactsTab';
+import { ContactAgentTab } from './ContactAgentTab';
+import { PhysicianTab } from './PhysicianTab';
+import { TransportTab } from './TransportTab';
+import { SettingsTab } from './SettingsTab';
+import { AccessibilityTab } from './AccessibilityTab';
+import { OfflineTab } from './OfflineTab';
+import { AmbulanceTab } from './AmbulanceTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
-  activeTab: PatientDashboardTab;
+  activeTab?: PatientDashboardTab;
 }
 
-export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = ({ activeTab }) => {
-  switch (activeTab) {
-    case 'appointments':
-      return <AppointmentsTab />;
-    case 'wallet':
-      return <WalletTab />;
-    case 'virtual-consultation':
-      return <VirtualConsultationTab />;
-    case 'chat':
-      return <ChatInterface />;
-    case 'ai-assistant':
-      return <AIAssistantTab />;
-    case 'prescriptions':
-      return <PrescriptionsTab />;
-    case 'health-records':
-      return <HealthRecordsTab />;
-    case 'symptom-checker':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Symptom Checker
-          </h2>
-          <SymptomChecker />
-        </div>
-      );
-    case 'emergency-contacts':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Emergency Contacts
-          </h2>
-          <EmergencyContacts />
-        </div>
-      );
-    case 'contact-agent':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Chat with Agent
-          </h2>
-          <PatientAgentChat />
-        </div>
-      );
-    case 'accessibility':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Accessibility Settings
-          </h2>
-          <AccessibilitySettings />
-        </div>
-      );
-    case 'offline':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Offline Access
-          </h2>
-          <OfflineManager />
-        </div>
-      );
-    case 'physician':
-      return <PhysicianAssignment />;
-    case 'emergency':
-      return <EmergencyTab />;
-    case 'profile':
-      return <ProfileTab />;
-    case 'transport':
-      return <TransportManagement />;
-    case 'subscription':
-      return <SubscriptionTab />;
-    case 'settings':
-      return <PatientSettings />;
-    case 'ambulance':
-      return <AmbulanceStatus />;
-    default:
-      return (
-        <div className="text-center py-8">
-          <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300">
-            Tab "{activeTab}" not found
-          </h3>
-          <p className="mt-2 text-gray-500">Please select a valid tab from the sidebar.</p>
-        </div>
-      );
-  }
+export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = ({ 
+  activeTab = 'appointments'
+}) => {
+  const { profile } = useAuth();
+
+  const getWelcomeMessage = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'appointments':
+        return <AppointmentsTab />;
+      case 'wallet':
+        return <WalletTab />;
+      case 'virtual-consultation':
+        return <EnhancedVirtualConsultationTab />;
+      case 'emergency':
+        return <EmergencyTab />;
+      case 'health-records':
+        return <HealthRecordsTab />;
+      case 'prescriptions':
+        return <PrescriptionsTab />;
+      case 'ai-assistant':
+        return <AIAssistantTab />;
+      case 'subscription':
+        return <SubscriptionTab />;
+      case 'profile':
+        return <ProfileTab />;
+      case 'symptom-checker':
+        return <SymptomCheckerTab />;
+      case 'chat':
+        return <ChatTab />;
+      case 'emergency-contacts':
+        return <EmergencyContactsTab />;
+      case 'contact-agent':
+        return <ContactAgentTab />;
+      case 'physician':
+        return <PhysicianTab />;
+      case 'transport':
+        return <TransportTab />;
+      case 'settings':
+        return <SettingsTab />;
+      case 'accessibility':
+        return <AccessibilityTab />;
+      case 'offline':
+        return <OfflineTab />;
+      case 'ambulance':
+        return <AmbulanceTab />;
+      default:
+        return <AppointmentsTab />;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Welcome Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">
+                {getWelcomeMessage()}, {profile?.first_name || 'Patient'}!
+              </CardTitle>
+              <p className="text-muted-foreground mt-1">
+                How can we help you with your health today?
+              </p>
+            </div>
+            <Badge variant="outline" className="bg-green-50 text-green-700">
+              {profile?.subscription_plan || 'Basic'} Plan
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Dynamic Content Based on Active Tab */}
+      {renderTabContent()}
+    </div>
+  );
 };

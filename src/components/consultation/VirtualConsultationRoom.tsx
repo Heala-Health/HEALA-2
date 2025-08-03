@@ -9,9 +9,11 @@ import { EmptySessionState } from './EmptySessionState';
 import { SessionList } from './SessionList';
 import { TestVideoSession } from './TestVideoSession';
 import { VirtualConsultationRoomProps } from './types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId: initialSessionId }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId || null);
+  const { user } = useAuth();
   
   const {
     session,
@@ -22,6 +24,23 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     endSession,
     formatDuration
   } = useConsultationSession(currentSessionId);
+
+  // Wrapper functions to provide userId to the session management functions
+  const handleStartSession = async () => {
+    if (!user?.id) {
+      console.error('No user ID available for starting session');
+      return;
+    }
+    return await startSession(user.id);
+  };
+
+  const handleEndSession = async () => {
+    if (!user?.id) {
+      console.error('No user ID available for ending session');
+      return;
+    }
+    return await endSession(user.id);
+  };
 
   // Update URL when session changes without reloading
   useEffect(() => {
@@ -105,8 +124,8 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
 
       <VideoInterface
         session={session}
-        onStartSession={startSession}
-        onEndSession={endSession}
+        onStartSession={handleStartSession}
+        onEndSession={handleEndSession}
       />
 
       <SessionSummary

@@ -9,7 +9,7 @@ import { AppointmentApproval } from '@/components/physician/AppointmentApproval'
 import { PatientManagement } from '@/components/physician/PatientManagement';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DigitalWallet } from '@/components/wallet/DigitalWallet';
-import { VirtualConsultationRoom } from '@/components/consultation/VirtualConsultationRoom';
+import { PhysicianVirtualConsultationTab } from '@/components/physician/VirtualConsultationTab';
 import { useSearchParams } from 'react-router-dom';
 
 const PhysicianDashboard = () => {
@@ -41,14 +41,7 @@ const PhysicianDashboard = () => {
           </div>
         );
       case 'virtual-consultation':
-        return (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              Virtual Consultation Room
-            </h2>
-            <VirtualConsultationRoom sessionId={searchParams.get('session')} />
-          </div>
-        );
+        return <PhysicianVirtualConsultationTab />;
       case 'profile':
         return <PhysicianProfile />;
       case 'documents':

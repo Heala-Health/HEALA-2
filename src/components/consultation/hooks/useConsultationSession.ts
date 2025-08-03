@@ -110,12 +110,13 @@ export const useConsultationSession = (sessionId: string | null) => {
     return () => clearInterval(interval);
   }, [session?.started_at, session?.status]);
 
-  const startSession = async () => {
+  const startSession = async (userId: string) => {
     if (!session) throw new Error('No session to start');
+    if (!userId) throw new Error('User ID required to start session');
     
     try {
       console.log('Starting consultation session:', session.id);
-      const updatedSession = await startConsultationSession(session);
+      const updatedSession = await startConsultationSession(session, userId);
       setSession(updatedSession);
       return updatedSession;
     } catch (error) {
@@ -124,12 +125,13 @@ export const useConsultationSession = (sessionId: string | null) => {
     }
   };
 
-  const endSession = async () => {
+  const endSession = async (userId: string) => {
     if (!session) throw new Error('No session to end');
+    if (!userId) throw new Error('User ID required to end session');
     
     try {
       console.log('Ending consultation session:', session.id);
-      const updatedSession = await endConsultationSession(session);
+      const updatedSession = await endConsultationSession(session, userId);
       setSession(updatedSession);
       return updatedSession;
     } catch (error) {

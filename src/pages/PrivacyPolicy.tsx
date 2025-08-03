@@ -15,13 +15,13 @@ const PrivacyPolicy = () => {
                   alt="Heala" 
                   className="h-8 w-auto"
                 />
-                <span className="text-2xl font-bold text-purple-800"></span>
+                <span className="text-2xl font-bold text-purple-800">Heala</span>
               </div>
-                        <Link to="/" className="text-gray-600 hover:text-purple-600">Home</Link>
-                         <Link to="/about" className="text-gray-600 hover:text-purple-600">About</Link>
-                         <Link to="/contact" className="text-gray-600 hover:text-purple-600">Contact Us</Link>
-                         <Link to="/privacy-policy" className="text-gray-600 hover:text-purple-600">Privacy Policy</Link>
-                         <Link to="/terms-of-service" className="text-gray-400 hover:text-purple-600">Terms of Service</Link>
+             <Link to="/" className="text-gray-600 hover:text-purple-600">Home</Link>
+              <Link to="/about" className="text-gray-600 hover:text-purple-600">About</Link>
+              <Link to="/contact" className="text-gray-600 hover:text-purple-600">Contact Us</Link>
+              <Link to="/privacy-policy" className="text-gray-600 hover:text-purple-600">Privacy Policy</Link>
+              <Link to="/terms-of-service" className="text-gray-400 hover:text-white">Terms of Service</Link>
             
             </div>
             <div className="space-x-4">

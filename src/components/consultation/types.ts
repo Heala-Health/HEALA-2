@@ -11,6 +11,7 @@ export interface ConsultationSession {
   duration_minutes?: number;
   payment_status: string;
   created_at: string;
+  appointment_id?: string;
   patient?: {
     first_name: string;
     last_name: string;
@@ -19,6 +20,10 @@ export interface ConsultationSession {
     first_name: string;
     last_name: string;
     specialization?: string;
+  } | null;
+  appointment?: {
+    appointment_date: string;
+    appointment_time: string;
   } | null;
 }
 

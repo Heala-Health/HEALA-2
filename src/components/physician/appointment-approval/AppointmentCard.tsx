@@ -1,8 +1,9 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, Check, X, Video, Pill } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Video, MessageSquare, Loader2 } from 'lucide-react';
 
 interface PendingAppointment {
   id: string;
@@ -21,94 +22,119 @@ interface PendingAppointment {
 
 interface AppointmentCardProps {
   appointment: PendingAppointment;
-  onAccept: (appointmentId: string, appointment: PendingAppointment) => void;
-  onReject: (appointmentId: string, appointment: PendingAppointment) => void;
-  onPrescribe: (appointmentId: string) => void;
+  onAccept: (id: string, appointment: PendingAppointment) => void;
+  onReject: (id: string, appointment: PendingAppointment) => void;
+  onPrescribe: (id: string) => void;
+  isProcessing?: boolean;
 }
 
 export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
   onAccept,
   onReject,
-  onPrescribe
+  onPrescribe,
+  isProcessing = false
 }) => {
-  const getConsultationTypeIcon = (type: string) => {
-    return type === 'virtual' ? <Video className="w-4 h-4" /> : <User className="w-4 h-4" />;
-  };
-
-  const getConsultationTypeBadge = (type: string) => {
-    return type === 'virtual' ? (
-      <Badge variant="secondary" className="bg-blue-100 text-blue-800">Virtual</Badge>
-    ) : (
-      <Badge variant="secondary" className="bg-green-100 text-green-800">In-Person</Badge>
-    );
-  };
+  const isVirtual = appointment.consultation_type === 'virtual';
 
   return (
-    <div className="border rounded-lg p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="flex items-center gap-2">
-              {getConsultationTypeIcon(appointment.consultation_type)}
-              <span className="font-medium">
+    <Card className="border-l-4 border-l-blue-500">
+      <CardContent className="pt-4">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <h3 className="font-semibold text-lg">
                 {appointment.patient.first_name} {appointment.patient.last_name}
-              </span>
-              {getConsultationTypeBadge(appointment.consultation_type)}
+              </h3>
+              <Badge variant={isVirtual ? "default" : "secondary"} className="ml-2">
+                {isVirtual ? (
+                  <>
+                    <Video className="w-3 h-3 mr-1" />
+                    Virtual
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="w-3 h-3 mr-1" />
+                    In-Person
+                  </>
+                )}
+              </Badge>
             </div>
-          </div>
-          
-          <div className="text-sm text-gray-600 space-y-1">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              {new Date(appointment.appointment_date).toLocaleDateString()}
+            
+            <div className="space-y-1 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-3 h-3" />
+                <span>{new Date(appointment.appointment_date).toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-3 h-3" />
+                <span>{appointment.appointment_time}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="w-3 h-3" />
+                <span>{appointment.patient.email}</span>
+              </div>
+              {appointment.patient.phone && (
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3">📞</span>
+                  <span>{appointment.patient.phone}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              {appointment.appointment_time}
-            </div>
-            <div>{appointment.patient.email}</div>
-            {appointment.patient.phone && <div>Phone: {appointment.patient.phone}</div>}
-          </div>
 
-          {appointment.notes && (
-            <div className="mt-2 text-sm text-gray-600">
-              <strong>Notes:</strong> {appointment.notes}
-            </div>
-          )}
+            {appointment.notes && (
+              <div className="mt-3 p-2 bg-gray-50 rounded text-sm">
+                <div className="flex items-start gap-2">
+                  <FileText className="w-3 h-3 mt-0.5 text-gray-500" />
+                  <div>
+                    <span className="font-medium">Notes:</span>
+                    <p className="mt-1">{appointment.notes}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2 flex-col">
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => onAccept(appointment.id, appointment)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Check className="w-4 h-4 mr-1" />
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onReject(appointment.id, appointment)}
-              className="text-red-600 border-red-200 hover:bg-red-50"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Reject
-            </Button>
-          </div>
+        <div className="flex gap-2 pt-2 border-t">
           <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onPrescribe(appointment.id)}
-            className="w-full"
+            onClick={() => onAccept(appointment.id, appointment)}
+            className="flex-1"
+            disabled={isProcessing}
           >
-            <Pill className="w-4 h-4 mr-1" />
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                Accept {isVirtual ? 'Virtual' : 'In-Person'}
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onReject(appointment.id, appointment)}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              'Reject'
+            )}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => onPrescribe(appointment.id)}
+            disabled={isProcessing}
+          >
+            <FileText className="w-4 h-4 mr-1" />
             Prescribe
           </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

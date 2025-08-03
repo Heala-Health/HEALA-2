@@ -2,44 +2,27 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ConsultationSession } from '../types';
 
-export const startConsultationSession = async (session: ConsultationSession): Promise<ConsultationSession> => {
-  console.log('🚀 [SessionManagement] Starting session using database function:', session.id);
+export const startConsultationSession = async (session: ConsultationSession, userId: string): Promise<ConsultationSession> => {
+  console.log('🚀 [SessionManagement] Starting session using secure function:', session.id);
   
   try {
-    // Use the new database function for secure session starting
-    // Note: We'll use a raw SQL call since the function isn't in the generated types yet
-    const { data, error } = await supabase
-      .from('consultation_sessions')
-      .select('*')
-      .eq('id', session.id)
-      .eq('physician_id', session.physician_id)
-      .single();
+    // Use the secure database function for session starting
+    const { data: success, error: functionError } = await supabase
+      .rpc('start_consultation_session_secure', {
+        session_uuid: session.id,
+        user_uuid: userId
+      });
 
-    if (error) {
-      console.error('❌ [SessionManagement] Error fetching session for verification:', error);
-      throw error;
+    if (functionError) {
+      console.error('❌ [SessionManagement] Database function error:', functionError);
+      throw functionError;
     }
 
-    if (!data) {
-      throw new Error('Session not found or unauthorized');
+    if (!success) {
+      throw new Error('Failed to start session - unauthorized or invalid state');
     }
 
-    // Update the session status directly
-    const { error: updateError } = await supabase
-      .from('consultation_sessions')
-      .update({
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', session.id);
-
-    if (updateError) {
-      console.error('❌ [SessionManagement] Error updating session:', updateError);
-      throw updateError;
-    }
-
-    console.log('✅ [SessionManagement] Session started successfully');
+    console.log('✅ [SessionManagement] Session started successfully via secure function');
 
     // Return updated session object
     const updatedSession = {
@@ -55,34 +38,41 @@ export const startConsultationSession = async (session: ConsultationSession): Pr
   }
 };
 
-export const endConsultationSession = async (session: ConsultationSession): Promise<ConsultationSession> => {
-  const endTime = new Date().toISOString();
-  const startTime = session.started_at ? new Date(session.started_at) : new Date();
-  const duration = Math.floor((new Date(endTime).getTime() - startTime.getTime()) / 1000 / 60);
+export const endConsultationSession = async (session: ConsultationSession, userId: string): Promise<ConsultationSession> => {
+  console.log('🏁 [SessionManagement] Ending session using secure function:', session.id);
 
-  console.log('🏁 [SessionManagement] Ending session:', session.id);
+  try {
+    // Use the secure database function for session ending
+    const { data: success, error: functionError } = await supabase
+      .rpc('end_consultation_session_secure', {
+        session_uuid: session.id,
+        user_uuid: userId
+      });
 
-  const { error } = await supabase
-    .from('consultation_sessions')
-    .update({
+    if (functionError) {
+      console.error('❌ [SessionManagement] Database function error:', functionError);
+      throw functionError;
+    }
+
+    if (!success) {
+      throw new Error('Failed to end session - unauthorized or invalid state');
+    }
+
+    console.log('✅ [SessionManagement] Session ended successfully via secure function');
+
+    // Calculate duration for return object
+    const endTime = new Date().toISOString();
+    const startTime = session.started_at ? new Date(session.started_at) : new Date();
+    const duration = Math.floor((new Date(endTime).getTime() - startTime.getTime()) / 1000 / 60);
+
+    return {
+      ...session,
       status: 'completed',
       ended_at: endTime,
-      duration_minutes: duration,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', session.id);
-
-  if (error) {
-    console.error('❌ [SessionManagement] Error ending session:', error);
+      duration_minutes: duration
+    };
+  } catch (error) {
+    console.error('💥 [SessionManagement] Fatal error ending session:', error);
     throw error;
   }
-
-  console.log('✅ [SessionManagement] Session ended successfully');
-
-  return {
-    ...session,
-    status: 'completed',
-    ended_at: endTime,
-    duration_minutes: duration
-  };
 };

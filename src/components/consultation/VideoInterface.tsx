@@ -25,6 +25,9 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [currentSession, setCurrentSession] = useState(session);
+  const [hasConsultationRoom, setHasConsultationRoom] = useState(false);
+  const [checkingRoom, setCheckingRoom] = useState(true);
+  const [creatingRoom, setCreatingRoom] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
@@ -47,6 +50,94 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     });
     setCurrentSession(session);
   }, [session, currentSession.status, currentSession.session_type]);
+
+  // Check if consultation room exists for video sessions
+  useEffect(() => {
+    if (currentSession.session_type !== 'video') {
+      setHasConsultationRoom(false);
+      setCheckingRoom(false);
+      return;
+    }
+
+    const checkConsultationRoom = async () => {
+      try {
+        console.log('🔍 [VideoInterface] Checking consultation room for session:', currentSession.id);
+        
+        const { data: room, error } = await supabase
+          .from('consultation_rooms')
+          .select('*')
+          .eq('session_id', currentSession.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('❌ [VideoInterface] Error checking consultation room:', error);
+          setHasConsultationRoom(false);
+        } else if (room) {
+          console.log('✅ [VideoInterface] Consultation room found:', room);
+          setHasConsultationRoom(true);
+        } else {
+          console.log('⚠️ [VideoInterface] No consultation room found for video session');
+          setHasConsultationRoom(false);
+        }
+      } catch (error) {
+        console.error('💥 [VideoInterface] Fatal error checking room:', error);
+        setHasConsultationRoom(false);
+      } finally {
+        setCheckingRoom(false);
+      }
+    };
+
+    checkConsultationRoom();
+  }, [currentSession.id, currentSession.session_type]);
+
+  // Function to create missing consultation room
+  const createMissingRoom = async () => {
+    if (currentSession.session_type !== 'video' || !user?.id) return;
+
+    setCreatingRoom(true);
+    try {
+      console.log('🔧 [VideoInterface] Creating missing consultation room for session:', currentSession.id);
+      
+      const roomToken = 'room_' + currentSession.id;
+      const { data: newRoom, error: createError } = await supabase
+        .from('consultation_rooms')
+        .insert({
+          session_id: currentSession.id,
+          room_token: roomToken,
+          room_status: 'waiting'
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ [VideoInterface] Failed to create consultation room:', createError);
+        toast({
+          title: "❌ Failed to Create Room",
+          description: "Could not create the consultation room. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('✅ [VideoInterface] Consultation room created successfully:', newRoom);
+      setHasConsultationRoom(true);
+      
+      toast({
+        title: "✅ Room Created",
+        description: "Consultation room has been created. You can now start the video session.",
+      });
+
+    } catch (error) {
+      console.error('💥 [VideoInterface] Error creating room:', error);
+      toast({
+        title: "❌ Error",
+        description: "An unexpected error occurred while creating the room.",
+        variant: "destructive"
+      });
+    } finally {
+      setCreatingRoom(false);
+    }
+  };
 
   // Set up real-time session monitoring
   useEffect(() => {
@@ -129,44 +220,27 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   });
 
   const handleStartConsultation = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "User not authenticated. Please login again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (currentSession.session_type === 'video' && !hasConsultationRoom) {
+      // Try to create the missing room first
+      await createMissingRoom();
+      
+      // Check if room creation was successful
+      if (!hasConsultationRoom) {
+        return; // Error already shown in createMissingRoom
+      }
+    }
+
     try {
       console.log('👨‍⚕️ [VideoInterface] Starting consultation for session:', currentSession.id);
-      
-      // Update session to in_progress and ensure it's video type
-      const updateData: any = {
-        status: 'in_progress',
-        started_at: new Date().toISOString()
-      };
-
-      // Always convert to video type when starting video consultation
-      if (currentSession.session_type === 'chat') {
-        updateData.session_type = 'video';
-        console.log('🔄 [VideoInterface] Converting chat session to video type');
-      }
-
-      console.log('📤 [VideoInterface] Updating session with data:', updateData);
-
-      const { error } = await supabase
-        .from('consultation_sessions')
-        .update(updateData)
-        .eq('id', currentSession.id);
-
-      if (error) {
-        console.error('❌ [VideoInterface] Error updating session:', error);
-        throw error;
-      }
-      
-      console.log('✅ [VideoInterface] Session updated successfully');
-      
-      // Update local state immediately
-      const updatedSession = {
-        ...currentSession,
-        status: 'in_progress' as const,
-        session_type: 'video' as const,
-        started_at: new Date().toISOString()
-      };
-      
-      setCurrentSession(updatedSession);
       
       await onStartSession();
       
@@ -187,6 +261,15 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   };
 
   const handleJoinCall = async () => {
+    if (currentSession.session_type === 'video' && !hasConsultationRoom) {
+      toast({
+        title: "❌ Cannot Join Video Call",
+        description: "This video session is missing its consultation room. Please refresh the page or contact support.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       console.log('👤 [VideoInterface] User joining video call');
       
@@ -196,7 +279,6 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         
         const updateData = {
           status: 'in_progress' as const,
-          session_type: 'video' as const,
           started_at: new Date().toISOString()
         };
 
@@ -241,6 +323,22 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     onEndSession();
   };
 
+  // Show loading state while checking consultation room
+  if (checkingRoom && currentSession.session_type === 'video') {
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px] flex items-center justify-center">
+            <div className="text-center text-white">
+              <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p>Preparing video consultation...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Show video interface when call is active
   if (isCallActive || isConnecting) {
     console.log('🖥️ [VideoInterface] Showing active video interface');
@@ -273,11 +371,12 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
               onEndCall={handleEndSession}
             />
 
-            {/* Enhanced debug info overlay */}
+            {/* Enhanced status overlay */}
             <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded z-20">
               <div>User: {profile?.role}</div>
               <div>Session: {currentSession.status}</div>
               <div>Type: {currentSession.session_type}</div>
+              <div>Room: {hasConsultationRoom ? 'Ready' : 'Missing'}</div>
               <div>Connection: {connectionState}</div>
               <div>Call: {isCallActive ? 'Active' : 'Inactive'}</div>
               <div>Time: {new Date().toLocaleTimeString()}</div>
@@ -294,12 +393,29 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     <Card>
       <CardContent className="p-0">
         <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
+          {/* Show room creation option if room is missing */}
+          {currentSession.session_type === 'video' && !hasConsultationRoom && isPhysician && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50 z-30">
+              <div className="bg-red-600 text-white p-6 rounded-lg max-w-md text-center">
+                <h3 className="text-lg font-semibold mb-2">❌ Cannot Start Video Session</h3>
+                <p className="mb-4">This video session is missing its consultation room.</p>
+                <button 
+                  onClick={createMissingRoom}
+                  disabled={creatingRoom}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+                >
+                  {creatingRoom ? 'Creating Room...' : 'Create Room'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <ConsultationActions
             sessionStatus={currentSession.status}
             isPhysician={isPhysician}
             isPatient={isPatient}
             consultationStarted={currentSession.status === 'in_progress'}
-            showJoinButton={currentSession.status === 'in_progress'}
+            showJoinButton={currentSession.status === 'in_progress' && hasConsultationRoom}
             isCallActive={isCallActive}
             autoJoinAttempted={false}
             onStartConsultation={handleStartConsultation}
@@ -308,12 +424,13 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
             onEnableManualJoin={() => {}}
           />
 
-          {/* Enhanced debug info overlay for actions */}
+          {/* Enhanced status overlay */}
           <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded z-10">
             <div>User: {profile?.role}</div>
             <div>Session: {currentSession.status}</div>
             <div>Type: {currentSession.session_type}</div>
-            <div>Show Join: {currentSession.status === 'in_progress' ? 'Yes' : 'No'}</div>
+            <div>Room: {currentSession.session_type === 'video' ? (hasConsultationRoom ? 'Ready' : 'Missing') : 'N/A'}</div>
+            <div>Show Join: {currentSession.status === 'in_progress' && hasConsultationRoom ? 'Yes' : 'No'}</div>
             <div>Is Patient: {isPatient ? 'Yes' : 'No'}</div>
             <div>Is Physician: {isPhysician ? 'Yes' : 'No'}</div>
             <div>Time: {new Date().toLocaleTimeString()}</div>

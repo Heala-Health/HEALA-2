@@ -1,0 +1,553 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  password          String
+  emailVerified     DateTime?
+  emailVerificationToken String?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  profile           Profile?
+  wallet            Wallet?
+  appointments      Appointment[]
+  emergencyRequests EmergencyRequest[]
+  ambulanceRequests AmbulanceRequest[]
+  conversations     Conversation[]
+  messages          Message[]
+  healthRecords     HealthRecord[]
+  prescriptions     Prescription[]
+  notifications     Notification[]
+  documents         Document[]
+  
+  @@map("users")
+}
+
+model Profile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName         String?
+  lastName          String?
+  phone             String?
+  dateOfBirth       DateTime?
+  gender            String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?   @default("Nigeria")
+  
+  // Role-based fields
+  role              UserRole  @default(PATIENT)
+  
+  // Physician-specific fields
+  specialization    String?
+  licenseNumber     String?
+  yearsOfExperience Int?
+  consultationRate  Decimal?  @default(0)
+  isActive          Boolean   @default(true)
+  hospitalId        String?
+  hospital          Hospital? @relation(fields: [hospitalId], references: [id])
+  
+  // Patient-specific fields
+  subscriptionPlan  String?   @default("basic")
+  emergencyContacts EmergencyContact[]
+  
+  // Agent-specific fields
+  agentAssignments  AgentAssignment[]
+  assistedPatients  AgentAssistedPatient[]
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("profiles")
+}
+
+enum UserRole {
+  PATIENT
+  PHYSICIAN
+  AGENT
+  HOSPITAL_ADMIN
+  ADMIN
+}
+
+// Hospital Management
+model Hospital {
+  id                     String    @id @default(cuid())
+  name                   String
+  address                String?
+  phone                  String?
+  email                  String?
+  city                   String?
+  state                  String?
+  latitude               Decimal?
+  longitude              Decimal?
+  isActive               Boolean   @default(true)
+  verificationStatus     String    @default("pending")
+  verificationDocuments  Json?     @default("[]")
+  securitySettings       Json?     @default("{}")
+  
+  // Relationships
+  profiles               Profile[]
+  appointments           Appointment[]
+  emergencyRequests      EmergencyRequest[]
+  ambulanceRequests      AmbulanceRequest[]
+  resources              HospitalResource[]
+  patients               HospitalPatient[]
+  waitlist               PatientWaitlist[]
+  financialData          HospitalFinancialData[]
+  complianceTracking     HospitalComplianceTracking[]
+  analyticsData          AnalyticsData[]
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  @@map("hospitals")
+}
+
+// Appointment System
+model Appointment {
+  id                String           @id @default(cuid())
+  patientId         String
+  patient           User             @relation(fields: [patientId], references: [id])
+  physicianId       String
+  physician         Profile          @relation("PhysicianAppointments", fields: [physicianId], references: [id])
+  hospitalId        String?
+  hospital          Hospital?        @relation(fields: [hospitalId], references: [id])
+  agentId           String?
+  agent             Profile?         @relation("AgentAppointments", fields: [agentId], references: [id])
+  
+  appointmentDate   DateTime
+  appointmentTime   String
+  appointmentType   String           @default("consultation")
+  consultationType  String           @default("in_person") // in_person, virtual
+  status            String           @default("pending")   // pending, confirmed, cancelled, completed
+  notes             String?
+  meetingLink       String?
+  
+  // Virtual consultation
+  consultationSession ConsultationSession?
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  @@map("appointments")
+}
+
+// Virtual Consultation System
+model ConsultationSession {
+  id                String               @id @default(cuid())
+  appointmentId     String               @unique
+  appointment       Appointment          @relation(fields: [appointmentId], references: [id])
+  patientId         String
+  physicianId       String
+  sessionType       String               @default("video") // video, audio, text
+  status            String               @default("scheduled") // scheduled, in_progress, completed, cancelled
+  startedAt         DateTime?
+  endedAt           DateTime?
+  durationMinutes   Int?
+  consultationRate  Decimal?
+  paymentStatus     String               @default("pending")
+  
+  // WebRTC Room
+  room              ConsultationRoom?
+  
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  
+  @@map("consultation_sessions")
+}
+
+model ConsultationRoom {
+  id                String               @id @default(cuid())
+  sessionId         String               @unique
+  session           ConsultationSession  @relation(fields: [sessionId], references: [id])
+  roomToken         String               @unique
+  roomStatus        String               @default("waiting") // waiting, active, completed
+  patientJoined     Boolean              @default(false)
+  physicianJoined   Boolean              @default(false)
+  
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  
+  @@map("consultation_rooms")
+}
+
+// Chat System
+model Conversation {
+  id            String    @id @default(cuid())
+  patientId     String
+  patient       User      @relation(fields: [patientId], references: [id])
+  physicianId   String?
+  physician     Profile?  @relation("PhysicianConversations", fields: [physicianId], references: [id])
+  type          String    @default("physician_consultation") // ai_diagnosis, physician_consultation, agent_support
+  title         String?
+  status        String?   @default("active")
+  
+  messages      Message[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("conversations")
+}
+
+model Message {
+  id              String         @id @default(cuid())
+  conversationId  String
+  conversation    Conversation   @relation(fields: [conversationId], references: [id])
+  senderId        String?
+  sender          User?          @relation(fields: [senderId], references: [id])
+  senderType      String         // patient, physician, ai_bot, agent
+  messageType     String         @default("text") // text, image, file
+  content         String
+  metadata        Json?
+  
+  createdAt       DateTime       @default(now())
+  
+  @@map("messages")
+}
+
+// Emergency System
+model EmergencyRequest {
+  id                     String    @id @default(cuid())
+  patientId              String
+  patient                User      @relation(fields: [patientId], references: [id])
+  emergencyType          String
+  description            String?
+  status                 String    @default("pending")
+  severity               String    @default("medium")
+  locationLatitude       Decimal?
+  locationLongitude      Decimal?
+  hospitalId             String?
+  hospital               Hospital? @relation(fields: [hospitalId], references: [id])
+  assignedPhysicianId    String?
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  @@map("emergency_requests")
+}
+
+model AmbulanceRequest {
+  id                     String    @id @default(cuid())
+  patientId              String
+  patient                User      @relation(fields: [patientId], references: [id])
+  emergencyType          String
+  description            String?
+  status                 String    @default("pending")
+  pickupAddress          String
+  pickupLatitude         Decimal?
+  pickupLongitude        Decimal?
+  destinationAddress     String?
+  destinationLatitude    Decimal?
+  destinationLongitude   Decimal?
+  contactPhone           String
+  ambulanceEta           Int?
+  assignedHospitalId     String?
+  assignedHospital       Hospital? @relation(fields: [assignedHospitalId], references: [id])
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  @@map("ambulance_requests")
+}
+
+// Financial System
+model Wallet {
+  id            String               @id @default(cuid())
+  userId        String               @unique
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance       Decimal              @default(0)
+  currency      String               @default("NGN")
+  
+  transactions  WalletTransaction[]
+  
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id              String    @id @default(cuid())
+  walletId        String
+  wallet          Wallet    @relation(fields: [walletId], references: [id])
+  transactionType String    // credit, debit
+  amount          Decimal
+  balanceAfter    Decimal
+  description     String?
+  referenceId     String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("wallet_transactions")
+}
+
+// Health Records
+model HealthRecord {
+  id            String    @id @default(cuid())
+  patientId     String
+  patient       User      @relation(fields: [patientId], references: [id])
+  recordType    String
+  title         String
+  description   String?
+  recordedDate  DateTime  @default(now())
+  recordedBy    String?
+  recordData    Json?     @default("{}")
+  documentUrl   String?
+  isSensitive   Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("health_records")
+}
+
+// Additional models for Prescriptions, Emergency Contacts, etc.
+model Prescription {
+  id              String    @id @default(cuid())
+  patientId       String
+  patient         User      @relation(fields: [patientId], references: [id])
+  physicianId     String
+  medicationName  String
+  dosage          String
+  frequency       String
+  duration        String
+  instructions    String?
+  status          String    @default("active")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("prescriptions")
+}
+
+model EmergencyContact {
+  id            String    @id @default(cuid())
+  patientId     String
+  patient       Profile   @relation(fields: [patientId], references: [id])
+  name          String
+  relationship  String
+  phone         String
+  email         String?
+  address       String?
+  isPrimary     Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("emergency_contacts")
+}
+
+// Agent System
+model AgentAssignment {
+  id            String    @id @default(cuid())
+  patientId     String
+  agentId       String
+  agent         Profile   @relation(fields: [agentId], references: [id])
+  status        String    @default("active")
+  assignedAt    DateTime  @default(now())
+  completedAt   DateTime?
+  notes         String?
+  
+  @@map("agent_assignments")
+}
+
+model AgentAssistedPatient {
+  id                       String    @id @default(cuid())
+  patientId                String
+  agentId                  String
+  agent                    Profile   @relation(fields: [agentId], references: [id])
+  assistanceType           String
+  description              String?
+  status                   String    @default("active")
+  notes                    String?
+  lastInteractionAt        DateTime  @default(now())
+  appointmentBookingCount  Int       @default(0)
+  
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  
+  @@map("agent_assisted_patients")
+}
+
+// Hospital Management
+model HospitalResource {
+  id                   String    @id @default(cuid())
+  hospitalId           String
+  hospital             Hospital  @relation(fields: [hospitalId], references: [id])
+  name                 String
+  category             String
+  totalQuantity        Int       @default(0)
+  availableQuantity    Int       @default(0)
+  inUseQuantity        Int       @default(0)
+  maintenanceQuantity  Int       @default(0)
+  status               String    @default("available")
+  
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  
+  @@map("hospital_resources")
+}
+
+model HospitalPatient {
+  id                   String     @id @default(cuid())
+  hospitalId           String
+  hospital             Hospital   @relation(fields: [hospitalId], references: [id])
+  patientId            String
+  assignedPhysicianId  String?
+  status               String     @default("active")
+  admissionDate        DateTime   @default(now())
+  dischargeDate        DateTime?
+  roomNumber           String?
+  notes                String?
+  
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  
+  @@map("hospital_patients")
+}
+
+model PatientWaitlist {
+  id                   String     @id @default(cuid())
+  hospitalId           String
+  hospital             Hospital   @relation(fields: [hospitalId], references: [id])
+  patientId            String
+  department           String
+  reason               String
+  priority             String     @default("medium")
+  status               String     @default("waiting")
+  estimatedWaitTime    Int?
+  calledAt             DateTime?
+  completedAt          DateTime?
+  
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  
+  @@map("patient_waitlist")
+}
+
+// Financial Management
+model HospitalFinancialData {
+  id               String    @id @default(cuid())
+  hospitalId       String
+  hospital         Hospital  @relation(fields: [hospitalId], references: [id])
+  transactionType  String
+  category         String
+  amount           Decimal
+  currency         String    @default("NGN")
+  description      String?
+  transactionDate  DateTime  @default(now())
+  fiscalMonth      String
+  referenceId      String?
+  metadata         Json?     @default("{}")
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  @@map("hospital_financial_data")
+}
+
+// Compliance and Analytics
+model HospitalComplianceTracking {
+  id                     String    @id @default(cuid())
+  hospitalId             String
+  hospital               Hospital  @relation(fields: [hospitalId], references: [id])
+  complianceType         String
+  status                 String    @default("compliant")
+  score                  Int?      @default(100)
+  lastAssessmentDate     DateTime  @default(now())
+  nextAssessmentDue      DateTime?
+  assessedBy             String?
+  assessmentDetails      Json?     @default("{}")
+  violations             Json?     @default("[]")
+  correctiveActions      Json?     @default("[]")
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  @@map("hospital_compliance_tracking")
+}
+
+model AnalyticsData {
+  id           String    @id @default(cuid())
+  hospitalId   String?
+  hospital     Hospital? @relation(fields: [hospitalId], references: [id])
+  metricName   String
+  metricValue  Decimal?
+  metricDate   DateTime  @default(now())
+  
+  createdAt    DateTime  @default(now())
+  
+  @@map("analytics_data")
+}
+
+// Document Management
+model Document {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id])
+  documentName         String
+  documentType         String
+  documentUrl          String
+  verificationStatus   String    @default("pending")
+  verifiedBy           String?
+  verifiedAt           DateTime?
+  
+  uploadDate           DateTime  @default(now())
+  
+  @@map("documents")
+}
+
+// Notifications
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String    @default("info")
+  title     String
+  message   String
+  read      Boolean   @default(false)
+  
+  createdAt DateTime  @default(now())
+  
+  @@map("notifications")
+}
+
+// Audit and Logging
+model AuditLog {
+  id             String    @id @default(cuid())
+  userId         String
+  hospitalId     String?
+  actionCategory String    @default("system_admin")
+  actionType     String    @default("unknown")
+  resourceType   String?
+  resourceId     String?
+  oldValues      Json?     @default("{}")
+  newValues      Json?     @default("{}")
+  impactLevel    String    @default("low")
+  complianceRelevant Boolean @default(false)
+  financialImpact Decimal?  @default(0)
+  sessionId      String?
+  ipAddress      String?
+  userAgent      String?
+  
+  createdAt      DateTime  @default(now())
+  
+  @@map("audit_logs")
+}

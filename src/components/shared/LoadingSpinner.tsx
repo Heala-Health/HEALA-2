@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
-  text?: string;
   className?: string;
+  text?: string;
 }
 
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  size = 'md', 
-  text,
-  className 
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  size = 'md',
+  className,
+  text
 }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -23,7 +23,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   return (
     <div className={cn('flex items-center justify-center gap-2', className)}>
       <Loader2 className={cn('animate-spin', sizeClasses[size])} />
-      {text && <span className="text-sm text-gray-600">{text}</span>}
+      {text && <span className="text-sm text-muted-foreground">{text}</span>}
     </div>
   );
 };

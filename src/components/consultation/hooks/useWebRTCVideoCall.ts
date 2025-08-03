@@ -27,14 +27,32 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   console.log(`🎥 [WebRTCVideoCall] Hook initialized for ${userRole} in session ${sessionId}`);
 
-  // WebRTC configuration with TURN servers for better connectivity
-  const rtcConfig = {
+  // WebRTC configuration with STUN and TURN servers for better connectivity
+  const rtcConfig: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
+      { urls: 'stun:stun2.l.google.com:19302' },
+      // Free TURN servers for better connectivity
+      { 
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      { 
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      { 
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ],
-    iceCandidatePoolSize: 10
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle' as RTCBundlePolicy,
+    rtcpMuxPolicy: 'require' as RTCRtcpMuxPolicy
   };
 
   // Setup signaling channel
@@ -283,7 +301,8 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   const startCall = async () => {
     try {
-      console.log('📞 [WebRTCVideoCall] Starting call...');
+      console.log('📞 [WebRTCVideoCall] Starting call...', { sessionId, userId, userRole });
+      console.log('📞 [WebRTCVideoCall] Channel ref:', channelRef.current);
       setIsConnecting(true);
 
       // Get user media with fallback constraints
