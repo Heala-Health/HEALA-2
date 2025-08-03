@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "npx ts-node --esm --transpile-only src/index.ts",
+    "build": "npx tsc",
+    "start": "node dist/index.js",
+    "postinstall": "prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -26,8 +29,8 @@
     "joi": "^17.13.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "multer": "^1.4.5",
-    "paystack": "^3.0.0",
+    "multer": "1.4.5-lts.1",
+    "paystack": "^2.0.1",
     "prisma": "^5.17.0",
     "@prisma/client": "^5.17.0",
     "socket.io": "^4.7.5",
