@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard, Activity, AlertTriangle, DollarSign, FileCheck, Monitor, Siren, Building, TrendingUp, BarChart3, Bell, Clipboard, UserCheck, Package } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard, Activity, AlertTriangle, DollarSign, FileCheck, Monitor, Siren, Building, TrendingUp, BarChart3, Bell, Clipboard, UserCheck, Package, Cog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -71,6 +71,7 @@ const agentMenuItems = [
   { title: 'Transport Booking', url: '/agent?tab=transport-booking', icon: Map },
   { title: 'Appointment Booking', url: '/agent?tab=appointment-booking', icon: Calendar },
   { title: 'Chat Interface', url: '/agent?tab=chat', icon: MessageCircle },
+  { title: 'Settings & Preferences', url: '/agent?tab=settings', icon: Cog },
 ];
 
 const adminMenuItems = [

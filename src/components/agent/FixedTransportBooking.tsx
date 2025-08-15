@@ -5,147 +5,124 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Car, MapPin, Clock, Loader2, CheckCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Car, MapPin, Clock, User, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-interface TransportBookingProps {
-  patientId?: string;
-  patientName?: string;
-}
-
-export const FixedTransportBooking: React.FC<TransportBookingProps> = ({ patientId, patientName }) => {
+export const FixedTransportBooking: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  
+  const [searchingPatient, setSearchingPatient] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [patientEmail, setPatientEmail] = useState('');
   const [formData, setFormData] = useState({
-    transport_type: '',
-    pickup_address: '',
-    destination_address: '',
-    scheduled_time: ''
+    pickupAddress: '',
+    destinationAddress: '',
+    scheduledDate: '',
+    scheduledTime: '',
+    transportType: 'standard',
+    notes: ''
   });
 
-  const transportTypes = [
-    'Standard Car',
-    'Luxury Vehicle', 
-    'Ambulance',
-    'Wheelchair Accessible Vehicle',
-    'Bus/Shuttle'
-  ];
+  const searchPatient = async () => {
+    if (!patientEmail.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter a patient's email address",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  const validateForm = (): string | null => {
-    if (!patientId) {
-      return "Please search for a patient first to book transport";
+    setSearchingPatient(true);
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, phone')
+        .eq('email', patientEmail.trim())
+        .eq('role', 'patient')
+        .single();
+
+      if (error || !profiles) {
+        toast({
+          title: "Patient Not Found",
+          description: "No patient found with this email address",
+          variant: "destructive"
+        });
+        setSelectedPatient(null);
+        return;
+      }
+
+      setSelectedPatient(profiles);
+      toast({
+        title: "Patient Found",
+        description: `Found patient: ${profiles.first_name} ${profiles.last_name}`,
+      });
+    } catch (error) {
+      console.error('Error searching for patient:', error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search for patient",
+        variant: "destructive"
+      });
+    } finally {
+      setSearchingPatient(false);
     }
-    
-    if (!formData.transport_type) {
-      return "Please select a transport type";
-    }
-    
-    if (!formData.pickup_address.trim()) {
-      return "Please enter a pickup address";
-    }
-    
-    if (!formData.destination_address.trim()) {
-      return "Please enter a destination address";
-    }
-    
-    if (!formData.scheduled_time) {
-      return "Please select a scheduled time";
-    }
-    
-    // Check if scheduled time is in the future
-    const scheduledDate = new Date(formData.scheduled_time);
-    const now = new Date();
-    
-    if (scheduledDate <= now) {
-      return "Scheduled time must be in the future";
-    }
-    
-    return null;
   };
 
-  const bookTransport = async () => {
-    const validationError = validateForm();
-    if (validationError) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedPatient) {
       toast({
-        title: "Validation Error",
-        description: validationError,
+        title: "Missing Information",
+        description: "Please select a patient first",
         variant: "destructive"
       });
       return;
     }
 
     setLoading(true);
-    setSuccess(false);
-    
     try {
-      console.log('Creating transport request with data:', {
-        patient_id: patientId,
-        agent_id: user?.id,
-        ...formData
-      });
-
-      const { data, error } = await supabase
+      const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
+      
+      const { error } = await supabase
         .from('transport_requests')
         .insert({
-          patient_id: patientId,
-          agent_id: user?.id,
-          transport_type: formData.transport_type,
-          pickup_address: formData.pickup_address,
-          destination_address: formData.destination_address,
-          scheduled_time: formData.scheduled_time,
+          patient_id: selectedPatient.id,
+          agent_id: user.id,
+          pickup_address: formData.pickupAddress,
+          destination_address: formData.destinationAddress,
+          scheduled_time: scheduledDateTime.toISOString(),
+          transport_type: formData.transportType,
           status: 'pending'
-        })
-        .select()
-        .single();
+        });
 
-      if (error) {
-        console.error('Transport booking error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Transport request created:', data);
-      
-      setSuccess(true);
       toast({
-        title: "Transport Booked Successfully!",
-        description: `Transport request for ${patientName || 'patient'} has been submitted.`,
+        title: "Transport Booked",
+        description: `Transport has been successfully booked for ${selectedPatient.first_name} ${selectedPatient.last_name}`,
       });
 
-      // Reset form after successful booking
+      // Reset form
       setFormData({
-        transport_type: '',
-        pickup_address: '',
-        destination_address: '',
-        scheduled_time: ''
+        pickupAddress: '',
+        destinationAddress: '',
+        scheduledDate: '',
+        scheduledTime: '',
+        transportType: 'standard',
+        notes: ''
       });
-
-      // Clear success state after 3 seconds
-      setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
-
+      setSelectedPatient(null);
+      setPatientEmail('');
     } catch (error) {
       console.error('Error booking transport:', error);
-      
-      let errorMessage = "Failed to book transport. Please try again.";
-      
-      if (error.message?.includes('row-level security')) {
-        errorMessage = "You don't have permission to book transport. Please ensure you're logged in as an agent.";
-      } else if (error.message?.includes('foreign key')) {
-        errorMessage = "Invalid patient or agent reference. Please refresh and try again.";
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = "Network error. Please check your connection and try again.";
-      }
-      
       toast({
         title: "Booking Failed",
-        description: errorMessage,
+        description: "Failed to book transport. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -153,137 +130,160 @@ export const FixedTransportBooking: React.FC<TransportBookingProps> = ({ patient
     }
   };
 
-  // Get minimum date time (current time + 30 minutes)
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 30);
-    return now.toISOString().slice(0, 16);
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Car className="w-5 h-5" />
-          Book Transport
-          {success && <CheckCircle className="w-5 h-5 text-green-500" />}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!patientId && (
-          <Alert>
-            <AlertDescription>
-              Please search for a patient first to book transport services.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {patientId && patientName && (
-          <Alert className="border-blue-200 bg-blue-50">
-            <AlertDescription className="text-blue-800">
-              <strong>Booking transport for:</strong> {patientName}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div>
-          <Label htmlFor="transport-type">Transport Type *</Label>
-          <Select 
-            value={formData.transport_type} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, transport_type: value }))}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select transport type" />
-            </SelectTrigger>
-            <SelectContent>
-              {transportTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label htmlFor="pickup">Pickup Address *</Label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-            <Input
-              id="pickup"
-              placeholder="Enter pickup address"
-              value={formData.pickup_address}
-              onChange={(e) => setFormData(prev => ({ ...prev, pickup_address: e.target.value }))}
-              className="pl-10"
-              disabled={loading}
-            />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Select Patient
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor="patientEmail">Patient Email</Label>
+              <Input
+                id="patientEmail"
+                type="email"
+                value={patientEmail}
+                onChange={(e) => setPatientEmail(e.target.value)}
+                placeholder="Enter patient's email address"
+                onKeyPress={(e) => e.key === 'Enter' && searchPatient()}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                type="button" 
+                onClick={searchPatient} 
+                disabled={searchingPatient}
+                variant="outline"
+              >
+                {searchingPatient ? (
+                  <>Searching...</>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-
-        <div>
-          <Label htmlFor="destination">Destination Address *</Label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-            <Input
-              id="destination"
-              placeholder="Enter destination address"
-              value={formData.destination_address}
-              onChange={(e) => setFormData(prev => ({ ...prev, destination_address: e.target.value }))}
-              className="pl-10"
-              disabled={loading}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="time">Scheduled Time *</Label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-            <Input
-              id="time"
-              type="datetime-local"
-              value={formData.scheduled_time}
-              onChange={(e) => setFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
-              className="pl-10"
-              min={getMinDateTime()}
-              disabled={loading}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Minimum booking time: 30 minutes from now
-          </p>
-        </div>
-
-        <Button 
-          onClick={bookTransport} 
-          disabled={loading || !patientId || success} 
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Booking Transport...
-            </>
-          ) : success ? (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Transport Booked Successfully!
-            </>
-          ) : (
-            <>
-              <Car className="w-4 h-4 mr-2" />
-              Book Transport
-            </>
+          
+          {selectedPatient && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <h4 className="font-medium text-green-800">Selected Patient:</h4>
+              <p className="text-green-700">
+                {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.email})
+              </p>
+              {selectedPatient.phone && (
+                <p className="text-green-600 text-sm">Phone: {selectedPatient.phone}</p>
+              )}
+            </div>
           )}
-        </Button>
+        </CardContent>
+      </Card>
 
-        {!patientId && (
-          <p className="text-sm text-gray-500 text-center">
-            Search for a patient above to enable transport booking
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Car className="w-5 h-5" />
+            Book Transport
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="pickupAddress">Pickup Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="pickupAddress"
+                  value={formData.pickupAddress}
+                  onChange={(e) => setFormData({ ...formData, pickupAddress: e.target.value })}
+                  placeholder="Enter pickup location"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="destinationAddress">Destination Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="destinationAddress"
+                  value={formData.destinationAddress}
+                  onChange={(e) => setFormData({ ...formData, destinationAddress: e.target.value })}
+                  placeholder="Enter destination"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="scheduledDate">Date</Label>
+                <Input
+                  id="scheduledDate"
+                  type="date"
+                  value={formData.scheduledDate}
+                  onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduledTime">Time</Label>
+                <Input
+                  id="scheduledTime"
+                  type="time"
+                  value={formData.scheduledTime}
+                  onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="transportType">Transport Type</Label>
+              <Select value={formData.transportType} onValueChange={(value) => setFormData({ ...formData, transportType: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                  <SelectItem value="wheelchair">Wheelchair Accessible</SelectItem>
+                  <SelectItem value="medical">Medical Transport</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Additional Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Any special requirements or notes"
+                rows={3}
+              />
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading || !selectedPatient} 
+              className="w-full"
+            >
+              {loading ? 'Booking...' : 'Book Transport for Patient'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

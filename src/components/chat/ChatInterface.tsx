@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ChatList } from './ChatList';
 import { PatientPhysicianChat } from './PatientPhysicianChat';
-import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
+import { EnhancedAIChat } from './EnhancedAIChat';
 import { Conversation } from './types';
 
 export const ChatInterface: React.FC = () => {
@@ -35,7 +35,7 @@ export const ChatInterface: React.FC = () => {
             ← Back to Chat List
           </button>
         </div>
-        <UniversalBotpress />
+        <EnhancedAIChat />
       </div>
     );
   }

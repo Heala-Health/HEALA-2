@@ -7,6 +7,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PaymentVerification } from "@/components/wallet/PaymentVerification";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/auth/login" element={<Login />} />
               <Route path="/auth/register" element={<Register />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/payment-verification" element={<PaymentVerification />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/about" element={<About />} />

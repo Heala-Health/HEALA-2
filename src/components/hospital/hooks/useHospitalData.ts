@@ -44,7 +44,10 @@ export const useHospitalData = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchHospitalData = async () => {
-    if (!profile?.hospital_id) return;
+    if (!profile?.hospital_id) {
+      console.log('No hospital_id found in profile:', profile);
+      return;
+    }
 
     try {
       const { data: hospital, error } = await supabase
@@ -111,8 +114,8 @@ export const useHospitalData = () => {
         today_appointments: todayAppointments || 0,
         total_patients: uniquePatients,
         emergency_requests: emergencyRequests || 0,
-        revenue_this_month: Math.floor(Math.random() * 500000) + 100000, // Mock data
-        occupancy_rate: Math.floor(Math.random() * 30) + 70 // Mock data 70-100%
+        revenue_this_month: 0, // Will be calculated from financial data
+        occupancy_rate: 0 // Will be calculated from patient data
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -128,8 +131,15 @@ export const useHospitalData = () => {
 
   useEffect(() => {
     if (user && profile?.role === 'hospital_admin' && profile?.hospital_id) {
+      console.log('Loading hospital data for profile:', profile);
       fetchHospitalData();
       fetchDashboardStats();
+    } else if (user && profile && profile.role === 'hospital_admin' && !profile.hospital_id) {
+      console.log('Hospital admin profile found but no hospital_id:', profile);
+      setLoading(false);
+    } else if (user && profile && profile.role !== 'hospital_admin') {
+      console.log('User profile found but not hospital_admin role:', profile.role);
+      setLoading(false);
     }
   }, [user, profile]);
 

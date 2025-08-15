@@ -45,7 +45,13 @@ export const PrescriptionCreationForm: React.FC<PrescriptionCreationFormProps> =
             {patient.phone && <p>Phone: {patient.phone}</p>}
             <p>Total Appointments: {patient.total_appointments}</p>
             {patient.last_appointment && (
-              <p>Last Appointment: {new Date(patient.last_appointment).toLocaleDateString()}</p>
+              <p>Last Appointment: {(() => {
+                try {
+                  return new Date(patient.last_appointment).toLocaleDateString();
+                } catch (error) {
+                  return 'Invalid date';
+                }
+              })()}</p>
             )}
           </div>
           <PrescriptionInput

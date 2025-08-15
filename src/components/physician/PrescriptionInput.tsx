@@ -54,6 +54,11 @@ export const PrescriptionInput: React.FC<PrescriptionInputProps> = ({
       setPharmacies(data || []);
     } catch (error) {
       console.error('Error fetching pharmacies:', error);
+      toast({
+        title: "Warning",
+        description: "Failed to load pharmacies. You can still create prescriptions.",
+        variant: "destructive"
+      });
     }
   };
 

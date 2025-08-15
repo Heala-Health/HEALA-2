@@ -2,6 +2,7 @@
 import React from 'react';
 import { HealthRecordsAccess } from '@/components/health-records/HealthRecordsAccess';
 import { MedicalHistoryUpload } from '@/components/medical-history/MedicalHistoryUpload';
+import { HealthHistoryManager } from '@/components/health-records/HealthHistoryManager';
 
 export const HealthRecordsTab: React.FC = () => {
   return (
@@ -11,6 +12,12 @@ export const HealthRecordsTab: React.FC = () => {
           Health Records
         </h2>
         <HealthRecordsAccess />
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          AI Health History
+        </h3>
+        <HealthHistoryManager />
       </div>
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">

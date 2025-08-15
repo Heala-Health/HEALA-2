@@ -92,7 +92,7 @@ export const usePatients = () => {
         })
       );
 
-      console.log('Patients with stats:', patientsWithStats);
+      console.log(`Found ${patientsWithStats.length} patients with stats.`);
       setPatients(patientsWithStats);
     } catch (error) {
       console.error('Error fetching patients:', error);

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Pill } from 'lucide-react';
 import { PatientList } from '../PatientList';
@@ -25,10 +25,10 @@ export const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({
         <div className="space-y-4">
           <PatientList 
             patients={patients}
-            onStartConversation={(patientId, patientName) => {
+            onStartConversation={useCallback((patientId: string, patientName: string) => {
               const patient = patients.find(p => p.id === patientId);
               onSelectPatient(patient || null);
-            }}
+            }, [patients, onSelectPatient])}
             actionLabel="Select for Prescription"
           />
         </div>

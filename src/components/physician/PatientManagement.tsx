@@ -72,6 +72,14 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
           onPrescriptionAdded={handlePrescriptionAdded}
         />
       );
+    } else {
+      // Handle case where patient is not found
+      setShowPrescriptionFor(null);
+      toast({
+        title: "Error",
+        description: "Patient not found. Please try again.",
+        variant: "destructive"
+      });
     }
   }
 

@@ -8,25 +8,22 @@ interface ChatTabsProps {
   onTabChange: (tab: string) => void;
 }
 
+const TAB_CONFIG = [
+  { value: 'patients', icon: User, label: 'Patient Chat' },
+  { value: 'prescriptions', icon: Pill, label: 'Prescriptions' },
+  { value: 'physicians', icon: Users, label: 'Physician Chat' },
+  { value: 'ai', icon: Bot, label: 'AI Assistant' }
+];
+
 export const ChatTabs: React.FC<ChatTabsProps> = ({ activeTab, onTabChange }) => {
   return (
     <TabsList className="grid w-full grid-cols-4">
-      <TabsTrigger value="patients" className="flex items-center gap-2">
-        <User className="w-4 h-4" />
-        Patient Chat
-      </TabsTrigger>
-      <TabsTrigger value="prescriptions" className="flex items-center gap-2">
-        <Pill className="w-4 h-4" />
-        Prescriptions
-      </TabsTrigger>
-      <TabsTrigger value="physicians" className="flex items-center gap-2">
-        <Users className="w-4 h-4" />
-        Physician Chat
-      </TabsTrigger>
-      <TabsTrigger value="ai" className="flex items-center gap-2">
-        <Bot className="w-4 h-4" />
-        AI Assistant
-      </TabsTrigger>
+      {TAB_CONFIG.map(({ value, icon: Icon, label }) => (
+        <TabsTrigger key={value} value={value} className="flex items-center gap-2">
+          <Icon className="w-4 h-4" />
+          {label}
+        </TabsTrigger>
+      ))}
     </TabsList>
   );
 };

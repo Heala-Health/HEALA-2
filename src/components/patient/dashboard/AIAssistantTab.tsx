@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
+import { EnhancedAIChat } from '@/components/chat/EnhancedAIChat';
 
 export const AIAssistantTab: React.FC = () => {
   return (
@@ -13,7 +13,7 @@ export const AIAssistantTab: React.FC = () => {
           Get instant health guidance and support from our AI assistant
         </p>
       </div>
-      <UniversalBotpress />
+      <EnhancedAIChat />
     </div>
   );
 };

@@ -39,7 +39,17 @@ export const VideoStreams: React.FC<VideoStreamsProps> = ({
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
           <div className="text-center text-white">
             <div className="text-6xl mb-4">👤</div>
-            <p className="text-lg">Waiting for other participant...</p>
+            <p className="text-lg">
+              {connectionState === 'connecting' ? 'Connecting to other participant...' : 
+               connectionState === 'new' ? 'Waiting for other participant...' :
+               connectionState === 'disconnected' ? 'Connection lost. Reconnecting...' :
+               'Establishing connection...'}
+            </p>
+            {connectionState === 'connecting' && (
+              <div className="mt-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+              </div>
+            )}
           </div>
         </div>
       )}

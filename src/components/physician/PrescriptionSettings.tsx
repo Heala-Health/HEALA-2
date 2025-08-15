@@ -39,7 +39,17 @@ export const PrescriptionSettings: React.FC<PrescriptionSettingsProps> = ({
             min="1"
             max="12"
             value={maxRepeats}
-            onChange={(e) => onMaxRepeatsChange(parseInt(e.target.value) || 0)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === '') {
+                onMaxRepeatsChange(0);
+              } else {
+                const parsed = parseInt(value, 10);
+                if (!isNaN(parsed) && parsed >= 0 && parsed <= 12) {
+                  onMaxRepeatsChange(parsed);
+                }
+              }
+            }}
             placeholder="Enter number of repeats"
           />
         </div>

@@ -40,10 +40,17 @@ export const PhysicianChatInterface: React.FC = () => {
   };
 
   const handlePrescriptionAdded = () => {
-    toast({
-      title: "Prescription Created",
-      description: `Prescription created for ${selectedPatient?.first_name} ${selectedPatient?.last_name}`
-    });
+    if (selectedPatient) {
+      toast({
+        title: "Prescription Created",
+        description: `Prescription created for ${selectedPatient.first_name} ${selectedPatient.last_name}`
+      });
+    } else {
+      toast({
+        title: "Prescription Created",
+        description: "Prescription created successfully"
+      });
+    }
   };
 
   if (loading) {

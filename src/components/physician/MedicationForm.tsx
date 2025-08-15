@@ -44,7 +44,7 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({
           <Label htmlFor={`medication_name_${index}`}>Medication Name *</Label>
           <Input
             id={`medication_name_${index}`}
-            value={medication.medication_name}
+            value={medication.medication_name || ''}
             onChange={(e) => onUpdate(index, 'medication_name', e.target.value)}
             placeholder="e.g., Paracetamol"
             required
@@ -94,7 +94,7 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({
         <Label htmlFor={`instructions_${index}`}>Special Instructions</Label>
         <Textarea
           id={`instructions_${index}`}
-          value={medication.instructions}
+          value={medication.instructions || ''}
           onChange={(e) => onUpdate(index, 'instructions', e.target.value)}
           placeholder="e.g., Take with food"
           rows={2}

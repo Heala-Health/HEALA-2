@@ -1,137 +1,115 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { useConsultationSession } from './hooks/useConsultationSession';
-import { ConsultationSessionHeader } from './ConsultationSessionHeader';
-import { VideoInterface } from './VideoInterface';
-import { SessionSummary } from './SessionSummary';
-import { EmptySessionState } from './EmptySessionState';
-import { SessionList } from './SessionList';
-import { TestVideoSession } from './TestVideoSession';
-import { VirtualConsultationRoomProps } from './types';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Video, VideoOff, Mic, MicOff, Phone, Users } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
-export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId: initialSessionId }) => {
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId || null);
+interface ConsultationSession {
+  id: string;
+  patient_id: string;
+  physician_id: string;
+  consultation_rate: number;
+  status: string;
+  payment_status: string;
+  session_type: string;
+  created_at: string;
+}
+
+interface VirtualConsultationRoomProps {
+  sessionId: string;
+}
+
+export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
   const { user } = useAuth();
-  
-  const {
-    session,
-    loading,
-    sessionDuration,
-    connectionStatus,
-    startSession,
-    endSession,
-    formatDuration
-  } = useConsultationSession(currentSessionId);
+  const { toast } = useToast();
+  const [session, setSession] = useState<ConsultationSession | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Wrapper functions to provide userId to the session management functions
-  const handleStartSession = async () => {
-    if (!user?.id) {
-      console.error('No user ID available for starting session');
-      return;
-    }
-    return await startSession(user.id);
-  };
-
-  const handleEndSession = async () => {
-    if (!user?.id) {
-      console.error('No user ID available for ending session');
-      return;
-    }
-    return await endSession(user.id);
-  };
-
-  // Update URL when session changes without reloading
   useEffect(() => {
-    if (currentSessionId) {
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('session', currentSessionId);
-      window.history.pushState({}, '', currentUrl.toString());
-    } else {
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.delete('session');
-      window.history.pushState({}, '', currentUrl.toString());
-    }
-  }, [currentSessionId]);
+    const fetchSession = async () => {
+      if (!sessionId) return;
 
-  const handleSelectSession = (selectedSessionId: string) => {
-    console.log('Selecting session:', selectedSessionId);
-    setCurrentSessionId(selectedSessionId);
-  };
+      try {
+        const { data, error } = await supabase
+          .from('consultation_sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .single();
 
-  const handleBackToList = () => {
-    setCurrentSessionId(null);
-  };
+        if (error) throw error;
+        setSession(data);
+      } catch (error) {
+        console.error('Error fetching session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load consultation session",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSession();
+  }, [sessionId, toast]);
 
   if (loading) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <div className="text-center">Loading consultation room...</div>
+          <div className="text-center">Loading consultation session...</div>
         </CardContent>
       </Card>
     );
   }
 
-  // If no session is selected, show the session list
-  if (!currentSessionId) {
-    return (
-      <div className="space-y-6">
-        <TestVideoSession />
-        <SessionList onSelectSession={handleSelectSession} />
-        <EmptySessionState />
-      </div>
-    );
-  }
-
-  // If session ID is provided but no session found
   if (!session) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-red-600 mb-4">Session not found or access denied.</p>
-            <button 
-              onClick={handleBackToList}
-              className="text-blue-600 hover:text-blue-800 underline"
-            >
-              Back to session list
-            </button>
-          </div>
+          <div className="text-center">Consultation session not found</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-4">
-        <button 
-          onClick={handleBackToList}
-          className="text-blue-600 hover:text-blue-800 underline text-sm"
-        >
-          ← Back to sessions
-        </button>
-      </div>
-
-      <ConsultationSessionHeader
-        session={session}
-        connectionStatus={connectionStatus}
-        sessionDuration={sessionDuration}
-        formatDuration={formatDuration}
-      />
-
-      <VideoInterface
-        session={session}
-        onStartSession={handleStartSession}
-        onEndSession={handleEndSession}
-      />
-
-      <SessionSummary
-        session={session}
-        formatDuration={formatDuration}
-      />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Video className="w-5 h-5" />
+          Virtual Consultation Room
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-gray-500">Local Video</div>
+          </div>
+          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-gray-500">Remote Video</div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center gap-4">
+          <Button variant="outline" size="sm">
+            <Video className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm">
+            <Mic className="w-4 h-4" />
+          </Button>
+          <Button variant="destructive" size="sm">
+            <Phone className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        <div className="text-center text-sm text-gray-500">
+          Consultation Rate: ₦{session.consultation_rate} | Status: {session.status}
+        </div>
+      </CardContent>
+    </Card>
   );
 };

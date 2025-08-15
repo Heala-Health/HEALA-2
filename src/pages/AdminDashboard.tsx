@@ -10,7 +10,7 @@ import { UserActivityMonitor } from '@/components/admin/UserActivityMonitor';
 import { EmergencyManagement } from '@/components/admin/EmergencyManagement';
 import { FinancialDisputes } from '@/components/admin/FinancialDisputes';
 import { ComplianceReports } from '@/components/admin/ComplianceReports';
-import { SystemSettings } from '@/components/admin/SystemSettings';
+import { AdminSystemSettings } from '@/components/admin/AdminSystemSettings';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
 
 const AdminDashboard = () => {
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
       case 'compliance':
         return <ComplianceReports />;
       case 'settings':
-        return <SystemSettings />;
+        return <AdminSystemSettings />;
       case 'audit':
         return <AdminAuditLog />;
       default:

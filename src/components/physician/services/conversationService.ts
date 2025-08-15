@@ -7,13 +7,17 @@ export const startConversation = async (
   physicianId: string
 ) => {
   try {
-    const { data: existingConversation } = await supabase
+    const { data: existingConversation, error: fetchError } = await supabase
       .from('conversations')
       .select('id')
       .eq('patient_id', patientId)
       .eq('physician_id', physicianId)
       .eq('type', 'physician_consultation')
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
 
     let conversationId;
 

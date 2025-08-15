@@ -2,87 +2,85 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Patient, Conversation } from '../types';
 
 export const usePhysicianChat = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPatients();
-    fetchConversations();
-  }, []);
-
   const fetchPatients = async () => {
+    if (!user) return;
+
     try {
-      // Get patients assigned to this physician
-      const { data: assignedPatients, error: assignmentError } = await supabase
-        .from('physician_patients')
-        .select('patient_id')
-        .eq('physician_id', user?.id)
-        .eq('status', 'active');
-
-      if (assignmentError) throw assignmentError;
-
-      if (!assignedPatients || assignedPatients.length === 0) {
-        setPatients([]);
-        setLoading(false);
-        return;
-      }
-
-      const patientIds = assignedPatients.map(p => p.patient_id);
-
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email')
-        .in('id', patientIds)
-        .eq('role', 'patient');
+        .select('id, first_name, last_name, email, phone')
+        .eq('role', 'patient')
+        .eq('is_active', true);
 
       if (error) throw error;
       setPatients(data || []);
     } catch (error) {
       console.error('Error fetching patients:', error);
-    } finally {
-      setLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to load patients.",
+        variant: "destructive"
+      });
     }
   };
 
   const fetchConversations = async () => {
+    if (!user) return;
+
     try {
-      const { data: conversationsData, error: conversationsError } = await supabase
+      // First get conversations
+      const { data: conversationsData, error: convError } = await supabase
         .from('conversations')
-        .select('*')
-        .eq('physician_id', user?.id)
+        .select('id, patient_id, physician_id, title, status, created_at')
+        .eq('physician_id', user.id)
         .eq('type', 'physician_consultation')
         .order('created_at', { ascending: false });
 
-      if (conversationsError) throw conversationsError;
+      if (convError) throw convError;
 
-      const conversationsWithPatients = await Promise.all(
-        (conversationsData || []).map(async (conv) => {
-          const { data: patientData } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', conv.patient_id)
-            .single();
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations([]);
+        return;
+      }
 
-          return {
-            id: conv.id,
-            patient_id: conv.patient_id,
-            physician_id: conv.physician_id,
-            title: conv.title,
-            status: conv.status,
-            created_at: conv.created_at,
-            patient_name: patientData ? `${patientData.first_name} ${patientData.last_name}` : 'Unknown Patient'
-          };
-        })
-      );
+      // Get patient names for each conversation
+      const patientIds = conversationsData.map(conv => conv.patient_id);
+      const { data: patientsData, error: patientsError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', patientIds);
 
-      setConversations(conversationsWithPatients);
+      if (patientsError) throw patientsError;
+
+      // Combine conversation data with patient names
+      const conversationsWithNames = conversationsData.map(conv => {
+        const patient = patientsData?.find(p => p.id === conv.patient_id);
+        return {
+          ...conv,
+          patient_name: patient 
+            ? `${patient.first_name} ${patient.last_name}`
+            : 'Unknown Patient'
+        };
+      });
+
+      setConversations(conversationsWithNames);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversations.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -95,8 +93,8 @@ export const usePhysicianChat = () => {
         .insert({
           patient_id: patientId,
           physician_id: user.id,
+          title: `Chat with ${patientName}`,
           type: 'physician_consultation',
-          title: `Consultation with Dr. ${user.user_metadata?.first_name || 'Physician'}`,
           status: 'active'
         })
         .select()
@@ -104,28 +102,36 @@ export const usePhysicianChat = () => {
 
       if (error) throw error;
 
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: data.id,
-          sender_type: 'physician',
-          sender_id: user.id,
-          content: `Hello ${patientName}! I'm ready to help you with your health concerns. How can I assist you today?`
-        });
-
-      fetchConversations();
+      await fetchConversations();
       return data.id;
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      throw error;
+      console.error('Error creating conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation.",
+        variant: "destructive"
+      });
+      return null;
     }
   };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchPatients(), fetchConversations()]);
+      setLoading(false);
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   return {
     patients,
     conversations,
     loading,
     startNewConversation,
-    refetchConversations: fetchConversations
+    refreshConversations: fetchConversations
   };
 };

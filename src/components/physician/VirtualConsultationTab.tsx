@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +108,7 @@ export const PhysicianVirtualConsultationTab: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (session: ConsultationSession) => {
+  const getStatusIcon = useCallback((session: ConsultationSession) => {
     const availability = checkSessionAvailability(session.id);
     const patientPresence = getParticipantStatus(session.patient_id);
     
@@ -129,9 +129,9 @@ export const PhysicianVirtualConsultationTab: React.FC = () => {
     }
     
     return <Clock className="w-4 h-4 text-gray-600" />;
-  };
+  }, [checkSessionAvailability, getParticipantStatus]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       weekday: 'short',
       year: 'numeric',
@@ -140,7 +140,7 @@ export const PhysicianVirtualConsultationTab: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, []);
 
   const formatTimeUntilReady = (milliseconds: number) => {
     const minutes = Math.floor(milliseconds / (1000 * 60));
@@ -305,7 +305,7 @@ export const PhysicianVirtualConsultationTab: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {readySessions.map((session) => {
-              const patientPresence = getParticipantStatus(session.patient_id);
+              const patientPresence = useMemo(() => getParticipantStatus(session.patient_id), [session.patient_id, getParticipantStatus]);
               return (
                 <div key={session.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between">
@@ -442,7 +442,6 @@ export const PhysicianVirtualConsultationTab: React.FC = () => {
                       <Button 
                         onClick={() => handleJoinSession(session.id)}
                         variant={session.status === 'in_progress' ? 'default' : 'secondary'}
-                        disabled={false}
                       >
                         <Video className="w-4 h-4 mr-2" />
                         {session.status === 'in_progress' ? 'Join' : 'Start'}

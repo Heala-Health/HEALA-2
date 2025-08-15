@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, Save, AlertTriangle, Shield, Globe, Users, DollarSign, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { AIKeyManager } from './AIKeyManager';
 
 interface SystemSetting {
   id: string;
@@ -117,6 +118,7 @@ export const SystemSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <AIKeyManager />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

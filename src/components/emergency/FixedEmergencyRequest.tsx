@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, MapPin, Phone, Loader2 } from 'lucide-react';
+import { Heart, MapPin, Phone, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -17,58 +16,38 @@ export const FixedEmergencyRequest: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
-  
   const [formData, setFormData] = useState({
-    emergency_type: '',
-    severity: 'medium',
+    emergencyType: '',
     description: '',
-    contact_phone: '',
-    pickup_address: '',
-    location_latitude: null as number | null,
-    location_longitude: null as number | null
+    severity: 'medium',
+    contactPhone: '',
+    locationLatitude: null as number | null,
+    locationLongitude: null as number | null,
+    pickupAddress: ''
   });
 
-  const emergencyTypes = [
-    'Medical Emergency',
-    'Accident',
-    'Cardiac Event',
-    'Respiratory Distress',
-    'Trauma',
-    'Mental Health Crisis',
-    'Other'
-  ];
-
-  const severityLevels = [
-    { value: 'low', label: 'Low', color: 'text-green-600' },
-    { value: 'medium', label: 'Medium', color: 'text-yellow-600' },
-    { value: 'high', label: 'High', color: 'text-orange-600' },
-    { value: 'critical', label: 'Critical', color: 'text-red-600' }
-  ];
-
-  const getCurrentLocation = () => {
-    setLocationLoading(true);
-    
+  const getLocation = () => {
     if (!navigator.geolocation) {
       toast({
-        title: "Location Error",
+        title: "Location Not Available",
         description: "Geolocation is not supported by this browser.",
         variant: "destructive"
       });
-      setLocationLoading(false);
       return;
     }
 
+    setLocationLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setFormData(prev => ({
           ...prev,
-          location_latitude: position.coords.latitude,
-          location_longitude: position.coords.longitude
+          locationLatitude: position.coords.latitude,
+          locationLongitude: position.coords.longitude
         }));
         setLocationLoading(false);
         toast({
           title: "Location Captured",
-          description: "Your current location has been captured successfully.",
+          description: "Your current location has been captured for emergency services.",
         });
       },
       (error) => {
@@ -76,29 +55,19 @@ export const FixedEmergencyRequest: React.FC = () => {
         setLocationLoading(false);
         toast({
           title: "Location Error",
-          description: "Could not get your current location. Please enter your address manually.",
+          description: "Could not get your location. Please enter your address manually.",
           variant: "destructive"
         });
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };
 
-  const submitEmergencyRequest = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to submit an emergency request.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
 
-    if (!formData.emergency_type || !formData.contact_phone) {
+    if (!formData.emergencyType || !formData.contactPhone) {
       toast({
         title: "Missing Information",
         description: "Please fill in emergency type and contact phone.",
@@ -107,60 +76,44 @@ export const FixedEmergencyRequest: React.FC = () => {
       return;
     }
 
-    if (!formData.pickup_address && (!formData.location_latitude || !formData.location_longitude)) {
-      toast({
-        title: "Location Required",
-        description: "Please provide either your address or allow location access.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
-    
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('emergency_requests')
         .insert({
           patient_id: user.id,
-          emergency_type: formData.emergency_type,
-          severity: formData.severity,
+          emergency_type: formData.emergencyType,
           description: formData.description,
-          contact_phone: formData.contact_phone,
-          pickup_address: formData.pickup_address,
-          location_latitude: formData.location_latitude,
-          location_longitude: formData.location_longitude,
+          severity: formData.severity,
+          contact_phone: formData.contactPhone,
+          location_latitude: formData.locationLatitude,
+          location_longitude: formData.locationLongitude,
+          pickup_address: formData.pickupAddress,
           status: 'pending'
-        })
-        .select()
-        .single();
+        });
 
-      if (error) {
-        console.error('Emergency request error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
-        title: "Emergency Request Submitted",
+        title: "Emergency Request Sent",
         description: "Your emergency request has been submitted. Help is on the way!",
       });
 
       // Reset form
       setFormData({
-        emergency_type: '',
-        severity: 'medium',
+        emergencyType: '',
         description: '',
-        contact_phone: '',
-        pickup_address: '',
-        location_latitude: null,
-        location_longitude: null
+        severity: 'medium',
+        contactPhone: '',
+        locationLatitude: null,
+        locationLongitude: null,
+        pickupAddress: ''
       });
-
     } catch (error) {
       console.error('Error submitting emergency request:', error);
       toast({
-        title: "Submission Failed",
-        description: "Failed to submit emergency request. Please try again or call emergency services directly.",
+        title: "Error",
+        description: "Failed to submit emergency request. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -169,144 +122,142 @@ export const FixedEmergencyRequest: React.FC = () => {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-600">
+    <Card className="border-red-200 bg-red-50">
+      <CardHeader className="bg-red-100 border-b border-red-200">
+        <CardTitle className="flex items-center gap-2 text-red-800">
           <AlertTriangle className="w-6 h-6" />
           Emergency Request
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <Alert className="border-red-200 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
-            For life-threatening emergencies, call emergency services immediately: <strong>199</strong>
-          </AlertDescription>
-        </Alert>
-
-        <div className="space-y-4">
+      <CardContent className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="emergency-type">Emergency Type *</Label>
-            <Select
-              value={formData.emergency_type}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, emergency_type: value }))}
+            <Label htmlFor="emergencyType" className="text-red-800">Emergency Type *</Label>
+            <Select 
+              value={formData.emergencyType} 
+              onValueChange={(value) => setFormData({ ...formData, emergencyType: value })}
+              required
             >
-              <SelectTrigger>
+              <SelectTrigger className="border-red-200">
                 <SelectValue placeholder="Select emergency type" />
               </SelectTrigger>
               <SelectContent>
-                {emergencyTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
+                <SelectItem value="medical">Medical Emergency</SelectItem>
+                <SelectItem value="cardiac">Cardiac Emergency</SelectItem>
+                <SelectItem value="respiratory">Breathing Difficulty</SelectItem>
+                <SelectItem value="trauma">Injury/Trauma</SelectItem>
+                <SelectItem value="mental_health">Mental Health Crisis</SelectItem>
+                <SelectItem value="stroke">Stroke</SelectItem>
+                <SelectItem value="overdose">Drug Overdose</SelectItem>
+                <SelectItem value="other">Other Emergency</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label htmlFor="severity">Severity Level</Label>
-            <Select
-              value={formData.severity}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, severity: value }))}
+            <Label htmlFor="contactPhone" className="text-red-800">Contact Phone *</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-3 h-4 w-4 text-red-600" />
+              <Input
+                id="contactPhone"
+                value={formData.contactPhone}
+                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                placeholder="Your phone number"
+                className="pl-10 border-red-200"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="severity" className="text-red-800">Severity Level</Label>
+            <Select 
+              value={formData.severity} 
+              onValueChange={(value) => setFormData({ ...formData, severity: value })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="border-red-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {severityLevels.map((level) => (
-                  <SelectItem key={level.value} value={level.value}>
-                    <span className={level.color}>{level.label}</span>
-                  </SelectItem>
-                ))}
+                <SelectItem value="low">Low - Stable condition</SelectItem>
+                <SelectItem value="medium">Medium - Needs attention</SelectItem>
+                <SelectItem value="high">High - Urgent care needed</SelectItem>
+                <SelectItem value="critical">Critical - Life threatening</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label htmlFor="contact-phone">Contact Phone *</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <Input
-                id="contact-phone"
-                type="tel"
-                placeholder="Enter your phone number"
-                value={formData.contact_phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="pickup-address">Pickup Address</Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <Input
-                id="pickup-address"
-                placeholder="Enter your current address"
-                value={formData.pickup_address}
-                onChange={(e) => setFormData(prev => ({ ...prev, pickup_address: e.target.value }))}
-                className="pl-10"
-              />
-            </div>
-            <div className="mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={getCurrentLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Getting Location...
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Use Current Location
-                  </>
-                )}
-              </Button>
-              {formData.location_latitude && formData.location_longitude && (
-                <p className="text-sm text-green-600 mt-1">
-                  ✓ Location captured
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description" className="text-red-800">Description</Label>
             <Textarea
               id="description"
-              placeholder="Describe the emergency situation (optional)"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe the emergency situation..."
+              className="border-red-200"
               rows={3}
             />
           </div>
 
-          <Button
-            onClick={submitEmergencyRequest}
-            disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Submit Emergency Request
-              </>
+          <div>
+            <Label htmlFor="pickupAddress" className="text-red-800">Address</Label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-3 h-4 w-4 text-red-600" />
+              <Input
+                id="pickupAddress"
+                value={formData.pickupAddress}
+                onChange={(e) => setFormData({ ...formData, pickupAddress: e.target.value })}
+                placeholder="Your current address"
+                className="pl-10 border-red-200"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={getLocation}
+              disabled={locationLoading}
+              className="mt-2 border-red-200 text-red-700 hover:bg-red-50"
+            >
+              {locationLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Getting Location...
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Get Current Location
+                </>
+              )}
+            </Button>
+            {formData.locationLatitude && formData.locationLongitude && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Location captured: {formData.locationLatitude.toFixed(6)}, {formData.locationLongitude.toFixed(6)}
+              </p>
             )}
-          </Button>
-        </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button 
+              type="submit" 
+              disabled={loading} 
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Heart className="w-4 h-4 mr-2" />
+                  Submit Emergency Request
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
       </CardContent>
     </Card>
   );

@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export const AddPhysicianForm: React.FC = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -44,58 +46,53 @@ export const AddPhysicianForm: React.FC = () => {
 
     setLoading(true);
     try {
-      // Create auth user first
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Get current hospital admin's hospital_id
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('hospital_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!adminProfile?.hospital_id) {
+        throw new Error('Hospital admin not assigned to any hospital');
+      }
+
+      // Create auth user
+      const { data: signupData, error: signupError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        user_metadata: {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          phone: formData.phone,
-          role: 'physician',
-          specialization: formData.specialization,
-          license_number: formData.license_number
+        options: {
+          data: {
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            phone: formData.phone,
+            role: 'physician',
+            specialization: formData.specialization,
+            license_number: formData.license_number,
+            hospital_id: adminProfile.hospital_id
+          }
         }
       });
 
-      if (authError) {
-        // If admin API not available, try regular signup
-        const { data: signupData, error: signupError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              first_name: formData.first_name,
-              last_name: formData.last_name,
-              phone: formData.phone,
-              role: 'physician',
-              specialization: formData.specialization,
-              license_number: formData.license_number
-            }
-          }
-        });
+      if (signupError) throw signupError;
+      
+      // Insert into profiles with hospital assignment
+      if (signupData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: signupData.user.id,
+            email: formData.email,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            phone: formData.phone,
+            role: 'physician',
+            specialization: formData.specialization,
+            license_number: formData.license_number,
+            hospital_id: adminProfile.hospital_id
+          });
 
-        if (signupError) throw signupError;
-        
-        // If signup successful, manually insert into profiles
-        if (signupData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: signupData.user.id,
-              email: formData.email,
-              first_name: formData.first_name,
-              last_name: formData.last_name,
-              phone: formData.phone,
-              role: 'physician',
-              specialization: formData.specialization,
-              license_number: formData.license_number
-            });
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
-        }
+        if (profileError) throw profileError;
       }
 
       toast({

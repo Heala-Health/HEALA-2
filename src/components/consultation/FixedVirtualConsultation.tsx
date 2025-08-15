@@ -8,6 +8,7 @@ import { Video, Users, Clock, Calendar, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { DevConsole } from './DevConsole';
 
 interface ConsultationSession {
   id: string;
@@ -35,7 +36,7 @@ interface ConsultationSession {
     id: string;
     room_token: string;
     room_status: string;
-  }[];
+  };
 }
 
 export const FixedVirtualConsultation: React.FC = () => {
@@ -141,7 +142,12 @@ export const FixedVirtualConsultation: React.FC = () => {
                 first_name: 'Unknown',
                 last_name: 'Physician',
                 specialization: 'General Practice'
-              }
+              },
+              consultation_rooms: session.consultation_rooms ? {
+                id: session.consultation_rooms.id,
+                room_token: session.consultation_rooms.room_token,
+                room_status: session.consultation_rooms.room_status
+              } : undefined
             };
           } catch (profileError) {
             console.error('Error fetching profiles for session:', session.id, profileError);
@@ -158,7 +164,12 @@ export const FixedVirtualConsultation: React.FC = () => {
                 first_name: 'Unknown',
                 last_name: 'Physician',
                 specialization: 'General Practice'
-              }
+              },
+              consultation_rooms: session.consultation_rooms ? {
+                id: session.consultation_rooms.id,
+                room_token: session.consultation_rooms.room_token,
+                room_status: session.consultation_rooms.room_status
+              } : undefined
             };
           }
         })
@@ -398,6 +409,8 @@ export const FixedVirtualConsultation: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      
+      <DevConsole sessionId={sessions[0]?.id} userId={user?.id} />
     </div>
   );
 };

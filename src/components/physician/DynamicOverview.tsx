@@ -97,12 +97,21 @@ export const DynamicOverview: React.FC = () => {
         (data || []).map(async (appointment) => {
           let patient = null;
           if (appointment.patient_id) {
-            const { data: patientData } = await supabase
-              .from('profiles')
-              .select('first_name, last_name')
-              .eq('id', appointment.patient_id)
-              .single();
-            patient = patientData;
+            try {
+              const { data: patientData, error: patientError } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', appointment.patient_id)
+                .single();
+              
+              if (patientError) {
+                console.error('Error fetching patient data:', patientError);
+              } else {
+                patient = patientData;
+              }
+            } catch (error) {
+              console.error('Error in patient data fetch:', error);
+            }
           }
 
           return {
@@ -122,6 +131,14 @@ export const DynamicOverview: React.FC = () => {
   };
 
   const updateAppointmentStatus = async (appointmentId: string, status: string) => {
+    // Validate inputs to prevent NoSQL injection
+    if (!appointmentId || typeof appointmentId !== 'string') {
+      throw new Error('Invalid appointment ID');
+    }
+    if (!status || typeof status !== 'string') {
+      throw new Error('Invalid status value');
+    }
+    
     try {
       const { error } = await supabase
         .from('appointments')

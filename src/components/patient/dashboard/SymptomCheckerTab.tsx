@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
+import { EnhancedSymptomChecker } from '@/components/symptom-checker/EnhancedSymptomChecker';
 
 export const SymptomCheckerTab: React.FC = () => {
-  return <SymptomChecker />;
+  return <EnhancedSymptomChecker />;
 };

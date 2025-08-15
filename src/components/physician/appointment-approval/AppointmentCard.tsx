@@ -36,6 +36,8 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   isProcessing = false
 }) => {
   const isVirtual = appointment.consultation_type === 'virtual';
+  const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`;
+  const formattedDate = new Date(appointment.appointment_date).toLocaleDateString();
 
   return (
     <Card className="border-l-4 border-l-blue-500">
@@ -45,7 +47,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <User className="w-4 h-4 text-gray-500" />
               <h3 className="font-semibold text-lg">
-                {appointment.patient.first_name} {appointment.patient.last_name}
+                {patientName}
               </h3>
               <Badge variant={isVirtual ? "default" : "secondary"} className="ml-2">
                 {isVirtual ? (
@@ -65,7 +67,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             <div className="space-y-1 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <Calendar className="w-3 h-3" />
-                <span>{new Date(appointment.appointment_date).toLocaleDateString()}</span>
+                <span>{formattedDate}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-3 h-3" />

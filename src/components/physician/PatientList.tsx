@@ -38,31 +38,34 @@ export const PatientList: React.FC<PatientListProps> = ({
           </div>
         ) : (
           <div className="space-y-2">
-            {patients.map((patient) => (
-              <div
-                key={patient.id}
-                className="p-3 border rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      {patient.first_name} {patient.last_name}
+            {patients.map((patient) => {
+              const fullName = `${patient.first_name} ${patient.last_name}`;
+              return (
+                <div
+                  key={patient.id}
+                  className="p-3 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium">
+                        {fullName}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {patient.email}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {patient.email}
-                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => onStartConversation(patient.id, fullName)}
+                      className="flex items-center gap-1"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {actionLabel}
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => onStartConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
-                    className="flex items-center gap-1"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    {actionLabel}
-                  </Button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

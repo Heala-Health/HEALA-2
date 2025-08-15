@@ -2,6 +2,35 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Medication } from '../types/prescription';
 
+const createPrescriptionData = (medications: Medication[]) => ({
+  medications: medications as any[],
+  total_medications: medications.length,
+  prescribed_date: new Date().toISOString()
+});
+
+const getPhysicianName = async (physicianId: string): Promise<string> => {
+  const { data: physicianProfile } = await supabase
+    .from('profiles')
+    .select('first_name, last_name')
+    .eq('id', physicianId)
+    .single();
+
+  return physicianProfile 
+    ? `Dr. ${physicianProfile.first_name} ${physicianProfile.last_name}`
+    : 'Your physician';
+};
+
+const createPatientNotification = async (patientId: string, physicianName: string, medicationCount: number) => {
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: patientId,
+      title: 'New Prescription Received',
+      message: `${physicianName} has sent you a new prescription with ${medicationCount} medication(s).`,
+      type: 'prescription'
+    });
+};
+
 export const createPrescription = async (
   patientId: string,
   physicianId: string,
@@ -11,13 +40,8 @@ export const createPrescription = async (
   maxRepeats: number,
   pharmacyId: string
 ) => {
-  const prescriptionData = {
-    medications: medications as any[],
-    total_medications: medications.length,
-    prescribed_date: new Date().toISOString()
-  };
+  const prescriptionData = createPrescriptionData(medications);
 
-  // Create the prescription
   const { data: prescription, error } = await supabase
     .from('prescriptions')
     .insert({
@@ -35,26 +59,8 @@ export const createPrescription = async (
 
   if (error) throw error;
 
-  // Get physician name for notification
-  const { data: physicianProfile } = await supabase
-    .from('profiles')
-    .select('first_name, last_name')
-    .eq('id', physicianId)
-    .single();
-
-  const physicianName = physicianProfile 
-    ? `Dr. ${physicianProfile.first_name} ${physicianProfile.last_name}`
-    : 'Your physician';
-
-  // Create notification for patient
-  await supabase
-    .from('notifications')
-    .insert({
-      user_id: patientId,
-      title: 'New Prescription Received',
-      message: `${physicianName} has sent you a new prescription with ${medications.length} medication(s).`,
-      type: 'prescription'
-    });
+  const physicianName = await getPhysicianName(physicianId);
+  await createPatientNotification(patientId, physicianName, medications.length);
 
   return prescription;
 };
